@@ -1,0 +1,4 @@
+member_id,name,email,role,team,lead_id,active
+M001,Ken Kamei,kk4801@nyu.edu,PI,Endometriosis,,TRUE
+M002,Project Lead,lead@example.edu,Lead,Endometriosis,M001,TRUE
+M003,Lab Member,member@example.edu,Member,Endometriosis,M002,TRUE

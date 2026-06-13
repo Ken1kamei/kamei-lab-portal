@@ -1,0 +1,2 @@
+update_id,record_type,record_id,updated_by,update_note,old_status,new_status,reviewed_by,review_status,review_note,timestamp
+UPD001,Experiment,EXP001,M003,Started hormone conditioning pilot,Preparing,Running,M002,Pending,,2026-06-13T09:00:00
