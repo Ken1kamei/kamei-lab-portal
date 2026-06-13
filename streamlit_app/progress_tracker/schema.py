@@ -7,6 +7,8 @@ from .constants import TABLES
 
 REQUIRED_COLUMNS = {
     "Members": ["member_id", "name", "email", "role", "team", "lead_id", "active"],
+    "Teams": ["team_id", "team_name", "active"],
+    "Member_Teams": ["member_id", "team_id"],
     "Projects": [
         "project_id",
         "project",

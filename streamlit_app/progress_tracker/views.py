@@ -157,19 +157,24 @@ def render_experiments(ledger: dict[str, pd.DataFrame]) -> None:
     )
 
 
-def render_review(ledger: dict[str, pd.DataFrame], reviewer_member_id: str) -> dict[str, pd.DataFrame]:
+def render_review(
+    ledger: dict[str, pd.DataFrame],
+    reviewer_member_id: str,
+    display_ledger: dict[str, pd.DataFrame] | None = None,
+) -> dict[str, pd.DataFrame]:
     st.subheader("Review queue")
+    source_ledger = display_ledger if display_ledger is not None else ledger
     review_items = pd.concat(
         [
-            ledger["Milestones"].assign(
+            source_ledger["Milestones"].assign(
                 record_type="Milestones",
-                record_id=ledger["Milestones"]["milestone_id"],
-                title=ledger["Milestones"]["milestone"],
+                record_id=source_ledger["Milestones"]["milestone_id"],
+                title=source_ledger["Milestones"]["milestone"],
             ),
-            ledger["Experiments"].assign(
+            source_ledger["Experiments"].assign(
                 record_type="Experiments",
-                record_id=ledger["Experiments"]["experiment_id"],
-                title=ledger["Experiments"]["experiment_title"],
+                record_id=source_ledger["Experiments"]["experiment_id"],
+                title=source_ledger["Experiments"]["experiment_title"],
             ),
         ],
         ignore_index=True,
@@ -179,7 +184,7 @@ def render_review(ledger: dict[str, pd.DataFrame], reviewer_member_id: str) -> d
         review_items[["record_type", "record_id", "title", "status", "review_status", "next_action"]],
         width="stretch",
     )
-    completed = completed_records(ledger)
+    completed = completed_records(source_ledger)
     st.subheader("Completed records")
     if completed.empty:
         st.info("No milestones or experiments are marked Completed yet.")
@@ -217,9 +222,14 @@ def render_review(ledger: dict[str, pd.DataFrame], reviewer_member_id: str) -> d
     return ledger
 
 
-def render_member_update_form(ledger: dict[str, pd.DataFrame], member_id: str) -> dict[str, pd.DataFrame]:
+def render_member_update_form(
+    ledger: dict[str, pd.DataFrame],
+    member_id: str,
+    display_ledger: dict[str, pd.DataFrame] | None = None,
+) -> dict[str, pd.DataFrame]:
     st.subheader("Update my experiment")
-    experiments = ledger["Experiments"]
+    source_ledger = display_ledger if display_ledger is not None else ledger
+    experiments = source_ledger["Experiments"]
     mine = experiments[experiments["member_id"] == member_id]
     if mine.empty:
         st.info("No experiments assigned to this member.")
@@ -258,9 +268,14 @@ def render_member_update_form(ledger: dict[str, pd.DataFrame], member_id: str) -
     return ledger
 
 
-def render_milestone_update_form(ledger: dict[str, pd.DataFrame], member_id: str) -> dict[str, pd.DataFrame]:
+def render_milestone_update_form(
+    ledger: dict[str, pd.DataFrame],
+    member_id: str,
+    display_ledger: dict[str, pd.DataFrame] | None = None,
+) -> dict[str, pd.DataFrame]:
     st.subheader("Update my milestone")
-    milestones = ledger["Milestones"]
+    source_ledger = display_ledger if display_ledger is not None else ledger
+    milestones = source_ledger["Milestones"]
     mine = milestones[milestones["owner_member_id"] == member_id]
     if mine.empty:
         st.info("No milestones assigned to this member.")

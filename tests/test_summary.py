@@ -3,11 +3,13 @@ from pathlib import Path
 from streamlit_app.progress_tracker.storage import CsvLedgerStore
 from streamlit_app.progress_tracker.summary import (
     completed_records,
+    filter_ledger_by_team,
     milestone_gantt_data,
     overview_counts,
     overview_summary_rows,
     records_by_member,
     team_gantt_data,
+    team_options,
 )
 
 
@@ -98,3 +100,29 @@ def test_completed_records_include_done_milestones_and_experiments():
     assert "Healthy receptive chip setup" in set(done["title"])
     assert "Hormone conditioning pilot" in set(done["title"])
     assert set(done["aim"]) == {"Aim 1"}
+
+
+def test_team_options_include_all_and_active_teams():
+    ledger = CsvLedgerStore(Path("streamlit_app/data/sample")).load()
+
+    assert team_options(ledger) == ["All teams", "Endometriosis Core", "Assay Development", "Data Analysis"]
+
+
+def test_filter_ledger_by_team_scopes_member_records_without_dropping_tables():
+    ledger = CsvLedgerStore(Path("streamlit_app/data/sample")).load()
+    filtered = filter_ledger_by_team(ledger, "Data Analysis")
+
+    assert set(filtered) == set(ledger)
+    assert set(filtered["Members"]["member_id"]) == {"M001", "M003"}
+    assert list(filtered["Milestones"]["milestone_id"]) == ["MS002"]
+    assert list(filtered["Experiments"]["experiment_id"]) == ["EXP001"]
+    assert len(ledger["Milestones"]) == 2
+
+
+def test_filter_ledger_by_all_teams_keeps_everything():
+    ledger = CsvLedgerStore(Path("streamlit_app/data/sample")).load()
+    filtered = filter_ledger_by_team(ledger, "All teams")
+
+    assert len(filtered["Members"]) == len(ledger["Members"])
+    assert len(filtered["Milestones"]) == len(ledger["Milestones"])
+    assert len(filtered["Experiments"]) == len(ledger["Experiments"])

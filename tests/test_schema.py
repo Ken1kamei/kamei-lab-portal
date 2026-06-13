@@ -17,7 +17,9 @@ def test_status_vocabularies_match_spec():
 
 
 def test_required_columns_include_spec_fields():
-    assert TABLES == ["Members", "Projects", "Milestones", "Experiments", "Updates_Reviews"]
+    assert TABLES == ["Members", "Teams", "Member_Teams", "Projects", "Milestones", "Experiments", "Updates_Reviews"]
+    assert REQUIRED_COLUMNS["Teams"] == ["team_id", "team_name", "active"]
+    assert REQUIRED_COLUMNS["Member_Teams"] == ["member_id", "team_id"]
     assert "start_date" in REQUIRED_COLUMNS["Milestones"]
     assert "experiment_data_link" in REQUIRED_COLUMNS["Experiments"]
     assert "analysis_folder_link" in REQUIRED_COLUMNS["Experiments"]

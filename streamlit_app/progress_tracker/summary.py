@@ -3,6 +3,52 @@ from __future__ import annotations
 import pandas as pd
 
 
+ALL_TEAMS_LABEL = "All teams"
+
+
+def team_options(ledger: dict[str, pd.DataFrame]) -> list[str]:
+    teams = ledger.get("Teams", pd.DataFrame(columns=["team_name", "active"])).copy()
+    if teams.empty:
+        fallback = ledger["Members"].get("team", pd.Series(dtype=str)).dropna().astype(str)
+        names = [name for name in fallback.drop_duplicates().tolist() if name]
+        return [ALL_TEAMS_LABEL, *names]
+
+    active = teams[teams["active"].astype(str).str.upper().isin(["TRUE", "1", "YES", "Y"])]
+    names = active["team_name"].dropna().astype(str).tolist()
+    return [ALL_TEAMS_LABEL, *[name for name in names if name]]
+
+
+def member_ids_for_team(ledger: dict[str, pd.DataFrame], team_name: str) -> set[str]:
+    members = ledger["Members"]
+    if team_name == ALL_TEAMS_LABEL:
+        return set(members["member_id"].astype(str))
+
+    teams = ledger.get("Teams", pd.DataFrame(columns=["team_id", "team_name"]))
+    member_teams = ledger.get("Member_Teams", pd.DataFrame(columns=["member_id", "team_id"]))
+    matching_team_ids = set(teams.loc[teams["team_name"] == team_name, "team_id"].astype(str))
+    if matching_team_ids:
+        return set(member_teams.loc[member_teams["team_id"].isin(matching_team_ids), "member_id"].astype(str))
+
+    if "team" in members.columns:
+        return set(members.loc[members["team"] == team_name, "member_id"].astype(str))
+    return set()
+
+
+def filter_ledger_by_team(ledger: dict[str, pd.DataFrame], team_name: str) -> dict[str, pd.DataFrame]:
+    if team_name == ALL_TEAMS_LABEL:
+        return {table_name: frame.copy() for table_name, frame in ledger.items()}
+
+    member_ids = member_ids_for_team(ledger, team_name)
+    filtered = {table_name: frame.copy() for table_name, frame in ledger.items()}
+    filtered["Members"] = ledger["Members"][ledger["Members"]["member_id"].isin(member_ids)].copy()
+    filtered["Milestones"] = ledger["Milestones"][ledger["Milestones"]["owner_member_id"].isin(member_ids)].copy()
+    filtered["Experiments"] = ledger["Experiments"][ledger["Experiments"]["member_id"].isin(member_ids)].copy()
+    filtered["Member_Teams"] = ledger.get("Member_Teams", pd.DataFrame()).copy()
+    if not filtered["Member_Teams"].empty:
+        filtered["Member_Teams"] = filtered["Member_Teams"][filtered["Member_Teams"]["member_id"].isin(member_ids)].copy()
+    return filtered
+
+
 def overview_counts(ledger: dict[str, pd.DataFrame]) -> dict[str, int]:
     milestones = ledger["Milestones"]
     experiments = ledger["Experiments"]
@@ -113,6 +159,7 @@ def team_gantt_data(ledger: dict[str, pd.DataFrame]) -> pd.DataFrame:
 
     combined = pd.concat([milestones, experiments], ignore_index=True, sort=False)
     combined = combined.merge(members, on="member_id", how="left")
+    combined["start_date"] = combined["start_date"].replace("", pd.NA).fillna(combined["due_date"])
     combined["start_date"] = pd.to_datetime(combined["start_date"], errors="coerce")
     combined["end_date"] = pd.to_datetime(combined["due_date"], errors="coerce")
     combined = combined.dropna(subset=["start_date", "end_date", "team_member"])
