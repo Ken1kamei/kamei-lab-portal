@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from streamlit_app.progress_tracker.storage import CsvLedgerStore
-from streamlit_app.progress_tracker.summary import milestone_gantt_data, overview_counts, records_by_member
+from streamlit_app.progress_tracker.summary import completed_records, milestone_gantt_data, overview_counts, records_by_member
 
 
 def test_overview_counts_include_pending_and_blocked():
@@ -42,3 +42,17 @@ def test_milestone_gantt_data_uses_start_and_due_dates():
     first = gantt.loc[gantt["milestone_id"] == "MS001"].iloc[0]
     assert str(first["start_date"].date()) == "2026-06-01"
     assert str(first["end_date"].date()) == "2026-07-15"
+
+
+def test_completed_records_include_done_milestones_and_experiments():
+    ledger = CsvLedgerStore(Path("streamlit_app/data/sample")).load()
+    ledger["Milestones"].loc[ledger["Milestones"]["milestone_id"] == "MS001", "status"] = "Completed"
+    ledger["Milestones"].loc[ledger["Milestones"]["milestone_id"] == "MS001", "review_status"] = "Approved"
+    ledger["Experiments"].loc[ledger["Experiments"]["experiment_id"] == "EXP001", "status"] = "Completed"
+
+    done = completed_records(ledger)
+
+    assert list(done["record_type"]) == ["Milestone", "Experiment"]
+    assert "Healthy receptive chip setup" in set(done["title"])
+    assert "Hormone conditioning pilot" in set(done["title"])
+    assert set(done["aim"]) == {"Aim 1"}

@@ -8,7 +8,7 @@ import streamlit as st
 
 from .constants import REVIEW_STATUSES, STATUSES
 from .services import review_record, update_progress_record
-from .summary import milestone_gantt_data, overview_counts, records_by_member
+from .summary import completed_records, milestone_gantt_data, overview_counts, records_by_member
 
 
 def render_overview(ledger: dict[str, pd.DataFrame]) -> None:
@@ -83,6 +83,18 @@ def render_milestones(ledger: dict[str, pd.DataFrame]) -> None:
         ],
         width="stretch",
     )
+    completed = completed_records(ledger)
+    completed_milestones = completed[completed["record_type"] == "Milestone"]
+    st.subheader("Completed milestones")
+    if completed_milestones.empty:
+        st.info("No milestones are marked Completed yet.")
+    else:
+        st.dataframe(
+            completed_milestones[
+                ["project", "aim", "title", "owner_id", "status", "review_status", "updated_at"]
+            ],
+            width="stretch",
+        )
 
 
 def render_experiments(ledger: dict[str, pd.DataFrame]) -> None:
@@ -136,6 +148,15 @@ def render_review(ledger: dict[str, pd.DataFrame], reviewer_member_id: str) -> d
         review_items[["record_type", "record_id", "title", "status", "review_status", "next_action"]],
         width="stretch",
     )
+    completed = completed_records(ledger)
+    st.subheader("Completed records")
+    if completed.empty:
+        st.info("No milestones or experiments are marked Completed yet.")
+    else:
+        st.dataframe(
+            completed[["record_type", "project", "aim", "title", "owner_id", "review_status", "updated_at"]],
+            width="stretch",
+        )
 
     if review_items.empty:
         return ledger

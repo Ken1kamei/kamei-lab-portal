@@ -55,3 +55,62 @@ def milestone_gantt_data(ledger: dict[str, pd.DataFrame]) -> pd.DataFrame:
     frame["end_date"] = pd.to_datetime(frame["due_date"], errors="coerce")
     frame = frame.drop(columns=["due_date"])
     return frame.dropna(subset=["start_date", "end_date"])
+
+
+def completed_records(ledger: dict[str, pd.DataFrame]) -> pd.DataFrame:
+    milestones = ledger["Milestones"][
+        [
+            "milestone_id",
+            "project",
+            "aim",
+            "milestone",
+            "owner_member_id",
+            "status",
+            "review_status",
+            "updated_at",
+        ]
+    ].rename(
+        columns={
+            "milestone_id": "record_id",
+            "milestone": "title",
+            "owner_member_id": "owner_id",
+        }
+    )
+    milestones["record_type"] = "Milestone"
+
+    experiments = ledger["Experiments"][
+        [
+            "experiment_id",
+            "milestone_id",
+            "member_id",
+            "experiment_title",
+            "status",
+            "review_status",
+            "updated_at",
+        ]
+    ].rename(
+        columns={
+            "experiment_id": "record_id",
+            "experiment_title": "title",
+            "member_id": "owner_id",
+        }
+    )
+    experiment_context = ledger["Milestones"][["milestone_id", "project", "aim"]]
+    experiments = experiments.merge(experiment_context, on="milestone_id", how="left").drop(columns=["milestone_id"])
+    experiments["record_type"] = "Experiment"
+
+    combined = pd.concat([milestones, experiments], ignore_index=True, sort=False)
+    completed = combined[combined["status"] == "Completed"].copy()
+    return completed[
+        [
+            "record_type",
+            "record_id",
+            "project",
+            "aim",
+            "title",
+            "owner_id",
+            "status",
+            "review_status",
+            "updated_at",
+        ]
+    ]
