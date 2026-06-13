@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+from datetime import datetime
+
 import pandas as pd
 import streamlit as st
 
 from .constants import REVIEW_STATUSES, STATUSES
+from .services import review_record, update_progress_record
 from .summary import overview_counts, records_by_member
 
 
@@ -68,24 +71,85 @@ def render_experiments(ledger: dict[str, pd.DataFrame]) -> None:
     )
 
 
-def render_review(ledger: dict[str, pd.DataFrame]) -> None:
+def render_review(ledger: dict[str, pd.DataFrame], reviewer_member_id: str) -> dict[str, pd.DataFrame]:
     st.subheader("Review queue")
     review_items = pd.concat(
         [
-            ledger["Milestones"].assign(record_type="Milestone", title=ledger["Milestones"]["milestone"]),
-            ledger["Experiments"].assign(record_type="Experiment", title=ledger["Experiments"]["experiment_title"]),
+            ledger["Milestones"].assign(
+                record_type="Milestones",
+                record_id=ledger["Milestones"]["milestone_id"],
+                title=ledger["Milestones"]["milestone"],
+            ),
+            ledger["Experiments"].assign(
+                record_type="Experiments",
+                record_id=ledger["Experiments"]["experiment_id"],
+                title=ledger["Experiments"]["experiment_title"],
+            ),
         ],
         ignore_index=True,
     )
     review_items = review_items[review_items["review_status"].isin(["Pending", "Needs revision"])]
-    st.dataframe(review_items[["record_type", "title", "status", "review_status", "next_action"]], use_container_width=True)
+    st.dataframe(
+        review_items[["record_type", "record_id", "title", "status", "review_status", "next_action"]],
+        use_container_width=True,
+    )
+
+    if review_items.empty:
+        return ledger
+
+    choices = [f"{row.record_type}:{row.record_id} - {row.title}" for row in review_items.itertuples()]
+    selected = st.selectbox("Review item", choices)
+    record_type, rest = selected.split(":", 1)
+    record_id = rest.split(" - ", 1)[0]
+    review_status = st.selectbox("Decision", REVIEW_STATUSES, index=1)
+    review_note = st.text_area("Review note")
+    if st.button("Save review"):
+        record_id_column = "milestone_id" if record_type == "Milestones" else "experiment_id"
+        return review_record(
+            ledger,
+            table_name=record_type,
+            record_id_column=record_id_column,
+            record_id=record_id,
+            reviewed_by=reviewer_member_id,
+            review_status=review_status,
+            review_note=review_note,
+            timestamp=datetime.now().isoformat(timespec="seconds"),
+        )
+    return ledger
 
 
-def render_member_update_form() -> None:
-    st.subheader("Prototype update form")
-    st.selectbox("Status", STATUSES)
-    st.selectbox("Review status", REVIEW_STATUSES, index=0, disabled=True)
-    st.text_input("Next action")
-    st.text_area("Update note")
-    st.text_input("Dropbox data link")
-    st.info("The first prototype screen shows the form shape. Persistence is covered by service tests and can be wired to this form in the next task.")
+def render_member_update_form(ledger: dict[str, pd.DataFrame], member_id: str) -> dict[str, pd.DataFrame]:
+    st.subheader("Update my experiment")
+    experiments = ledger["Experiments"]
+    mine = experiments[experiments["member_id"] == member_id]
+    if mine.empty:
+        st.info("No experiments assigned to this member.")
+        return ledger
+
+    choices = [f"{row.experiment_id} - {row.experiment_title}" for row in mine.itertuples()]
+    selected = st.selectbox("Experiment", choices)
+    experiment_id = selected.split(" - ", 1)[0]
+    current = mine[mine["experiment_id"] == experiment_id].iloc[0]
+    status = st.selectbox("Status", STATUSES, index=STATUSES.index(current["status"]))
+    next_action = st.text_input("Next action", value=current["next_action"])
+    blocker_reason = st.text_input("Blocker reason", value=current["blocker_reason"])
+    experiment_data_link = st.text_input("Dropbox data link", value=current["experiment_data_link"])
+    update_note = st.text_area("Update note")
+
+    if st.button("Save progress update"):
+        return update_progress_record(
+            ledger,
+            table_name="Experiments",
+            record_id_column="experiment_id",
+            record_id=experiment_id,
+            updated_by=member_id,
+            changes={
+                "status": status,
+                "next_action": next_action,
+                "blocker_reason": blocker_reason,
+                "experiment_data_link": experiment_data_link,
+            },
+            update_note=update_note,
+            timestamp=datetime.now().isoformat(timespec="seconds"),
+        )
+    return ledger
