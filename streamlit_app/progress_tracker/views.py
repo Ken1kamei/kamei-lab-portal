@@ -27,12 +27,12 @@ def render_overview(ledger: dict[str, pd.DataFrame]) -> None:
     )
     blocked = blocked[blocked["status"] == "Blocked"]
     st.subheader("Blocked items")
-    st.dataframe(blocked[["record_type", "title", "blocker_reason", "help_needed_from"]], use_container_width=True)
+    st.dataframe(blocked[["record_type", "title", "blocker_reason", "help_needed_from"]], width="stretch")
 
 
 def render_members(ledger: dict[str, pd.DataFrame]) -> None:
     st.subheader("Progress by member")
-    st.dataframe(records_by_member(ledger), use_container_width=True)
+    st.dataframe(records_by_member(ledger), width="stretch")
 
 
 def render_milestones(ledger: dict[str, pd.DataFrame]) -> None:
@@ -40,7 +40,7 @@ def render_milestones(ledger: dict[str, pd.DataFrame]) -> None:
     frame = ledger["Milestones"]
     st.dataframe(
         frame[["project", "aim", "milestone", "time_window", "owner_member_id", "status", "review_status", "next_action"]],
-        use_container_width=True,
+        width="stretch",
     )
 
 
@@ -63,7 +63,7 @@ def render_experiments(ledger: dict[str, pd.DataFrame]) -> None:
                 "analysis_folder_link",
             ]
         ],
-        use_container_width=True,
+        width="stretch",
         column_config={
             "experiment_data_link": st.column_config.LinkColumn("Data"),
             "analysis_folder_link": st.column_config.LinkColumn("Analysis"),
@@ -91,7 +91,7 @@ def render_review(ledger: dict[str, pd.DataFrame], reviewer_member_id: str) -> d
     review_items = review_items[review_items["review_status"].isin(["Pending", "Needs revision"])]
     st.dataframe(
         review_items[["record_type", "record_id", "title", "status", "review_status", "next_action"]],
-        use_container_width=True,
+        width="stretch",
     )
 
     if review_items.empty:
