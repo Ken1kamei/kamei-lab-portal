@@ -117,3 +117,24 @@ def test_google_sheet_registry_store_uses_same_table_contract():
 
     assert registry["Members"].loc[0, "member_id"] == "M001"
     assert list(registry["Apps"].columns)[0] == "app_id"
+
+
+def test_google_sheet_registry_store_saves_header_and_rows():
+    spreadsheet = FakeSpreadsheet(
+        {
+            "Members": FakeWorksheet([]),
+            "Teams": FakeWorksheet([]),
+            "Member_Teams": FakeWorksheet([]),
+            "Apps": FakeWorksheet([]),
+            "App_Roles": FakeWorksheet([]),
+            "Audit_Log": FakeWorksheet([]),
+        }
+    )
+    registry = CsvRegistryStore(Path("lab_portal/data/sample")).load()
+
+    GoogleSheetRegistryStore(spreadsheet).save(registry)
+
+    members_rows = spreadsheet.worksheets["Members"].updated_rows
+    assert members_rows[0] == list(registry["Members"].columns)
+    assert members_rows[1][0] == "M001"
+    assert members_rows[1][1] == "kkamei@nyu.edu"
