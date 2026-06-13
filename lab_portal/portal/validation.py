@@ -26,7 +26,8 @@ def validate_registry(registry: Registry) -> list[str]:
 
     members = registry["Members"].fillna("")
     active_members = members[_active_values(members)]
-    duplicate_emails = active_members["email"][active_members["email"].duplicated()].tolist()
+    normalized_emails = active_members["email"].astype(str).str.strip().str.lower()
+    duplicate_emails = normalized_emails[normalized_emails.duplicated()].tolist()
     for email in sorted(set(duplicate_emails)):
         errors.append(f"Duplicate active member email: {email}")
 
