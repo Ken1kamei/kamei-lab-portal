@@ -73,17 +73,21 @@ def apply_theme() -> None:
           opacity: .7;
         }
         .portal-card-title {
+          display: block;
           color: var(--portal-text);
           font-size: 1.2rem;
           font-weight: 900;
+          margin-top: 18px;
           margin-bottom: 8px;
         }
         .portal-card-muted {
+          display: block;
           color: var(--portal-muted);
           font-size: .95rem;
           line-height: 1.35;
         }
         .portal-status {
+          display: block;
           color: var(--portal-cyan);
           font-size: .78rem;
           text-transform: uppercase;

@@ -53,7 +53,7 @@ def render_home(registry) -> None:
     columns = st.columns(3)
     for index, card in enumerate(cards):
         with columns[index % 3]:
-            st.markdown(app_card_html(card), unsafe_allow_html=True)
+            st.html(app_card_html(card))
 
 
 def render_table_page(title: str, subtitle: str, frame) -> None:

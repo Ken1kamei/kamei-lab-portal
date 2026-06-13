@@ -96,6 +96,8 @@ def test_app_card_html_makes_enabled_card_the_link_target():
 
     assert html.startswith('<a class="portal-card portal-card-link"')
     assert 'href="https://example.edu/budget"' in html
+    assert "<div" not in html
+    assert html.count("<a ") == 1
     assert "Open Budget" not in html
 
 

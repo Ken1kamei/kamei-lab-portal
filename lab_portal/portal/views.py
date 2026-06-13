@@ -50,9 +50,9 @@ def app_cards(registry: Registry) -> list[dict[str, object]]:
 
 def app_card_html(card: dict[str, object]) -> str:
     content = (
-        f"<div class=\"portal-status\">{card['status']}</div>"
-        f"<div class=\"portal-card-title\">{card['label']}</div>"
-        f"<div class=\"portal-card-muted\">{card['description']}</div>"
+        f"<span class=\"portal-status\">{card['status']}</span>"
+        f"<span class=\"portal-card-title\">{card['label']}</span>"
+        f"<span class=\"portal-card-muted\">{card['description']}</span>"
     )
     if card["enabled"]:
         return (
