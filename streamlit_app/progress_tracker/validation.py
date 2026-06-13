@@ -26,6 +26,8 @@ def validate_progress_record(record: dict[str, object]) -> list[str]:
         errors.append(f"status must be one of: {', '.join(STATUSES)}.")
     if review_status and review_status not in REVIEW_STATUSES:
         errors.append(f"review_status must be one of: {', '.join(REVIEW_STATUSES)}.")
+    if _blank(record.get("owner_member_id")) and _blank(record.get("member_id")):
+        errors.append("owner_member_id or member_id is required.")
     if _blank(record.get("next_action")):
         errors.append("next_action is required.")
     if status == "Blocked" and _blank(record.get("blocker_reason")):

@@ -54,6 +54,17 @@ def test_member_update_form_shows_validation_error_and_keeps_ledger(monkeypatch)
     assert fake_st.errors == ["Blocked records require blocker_reason."]
 
 
+def test_milestone_update_form_shows_validation_error_and_keeps_ledger(monkeypatch):
+    ledger = _sample_ledger()
+    fake_st = _FakeStreamlit()
+    monkeypatch.setattr(views, "st", fake_st)
+
+    result = views.render_milestone_update_form(ledger, "M002")
+
+    assert result is ledger
+    assert fake_st.errors == ["Blocked records require blocker_reason."]
+
+
 def test_review_form_shows_validation_error_and_keeps_ledger(monkeypatch):
     ledger = _sample_ledger()
     fake_st = _FakeStreamlit()

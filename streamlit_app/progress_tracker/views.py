@@ -60,12 +60,14 @@ def render_experiments(ledger: dict[str, pd.DataFrame]) -> None:
                 "next_action",
                 "due_date",
                 "experiment_data_link",
+                "protocol_link",
                 "analysis_folder_link",
             ]
         ],
         width="stretch",
         column_config={
             "experiment_data_link": st.column_config.LinkColumn("Data"),
+            "protocol_link": st.column_config.LinkColumn("Protocol"),
             "analysis_folder_link": st.column_config.LinkColumn("Analysis"),
         },
     )
@@ -153,6 +155,45 @@ def render_member_update_form(ledger: dict[str, pd.DataFrame], member_id: str) -
                     "next_action": next_action,
                     "blocker_reason": blocker_reason,
                     "experiment_data_link": experiment_data_link,
+                },
+                update_note=update_note,
+                timestamp=datetime.now().isoformat(timespec="seconds"),
+            )
+        except ValueError as exc:
+            st.error(str(exc))
+            return ledger
+    return ledger
+
+
+def render_milestone_update_form(ledger: dict[str, pd.DataFrame], member_id: str) -> dict[str, pd.DataFrame]:
+    st.subheader("Update my milestone")
+    milestones = ledger["Milestones"]
+    mine = milestones[milestones["owner_member_id"] == member_id]
+    if mine.empty:
+        st.info("No milestones assigned to this member.")
+        return ledger
+
+    choices = [f"{row.milestone_id} - {row.milestone}" for row in mine.itertuples()]
+    selected = st.selectbox("Milestone", choices)
+    milestone_id = selected.split(" - ", 1)[0]
+    current = mine[mine["milestone_id"] == milestone_id].iloc[0]
+    status = st.selectbox("Status", STATUSES, index=STATUSES.index(current["status"]))
+    next_action = st.text_input("Next action", value=current["next_action"])
+    blocker_reason = st.text_input("Blocker reason", value=current["blocker_reason"])
+    update_note = st.text_area("Update note")
+
+    if st.button("Save milestone progress update"):
+        try:
+            return update_progress_record(
+                ledger,
+                table_name="Milestones",
+                record_id_column="milestone_id",
+                record_id=milestone_id,
+                updated_by=member_id,
+                changes={
+                    "status": status,
+                    "next_action": next_action,
+                    "blocker_reason": blocker_reason,
                 },
                 update_note=update_note,
                 timestamp=datetime.now().isoformat(timespec="seconds"),

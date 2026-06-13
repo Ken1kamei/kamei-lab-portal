@@ -9,6 +9,7 @@ from streamlit_app.progress_tracker.views import (
     render_experiments,
     render_member_update_form,
     render_members,
+    render_milestone_update_form,
     render_milestones,
     render_overview,
     render_review,
@@ -43,6 +44,11 @@ def main() -> None:
     with tabs[1]:
         render_members(ledger)
     with tabs[2]:
+        updated_ledger = render_milestone_update_form(ledger, selected_member_id)
+        if updated_ledger is not ledger:
+            save_ledger(updated_ledger)
+            st.success("Milestone update saved.")
+            st.rerun()
         render_milestones(ledger)
     with tabs[3]:
         updated_ledger = render_member_update_form(ledger, selected_member_id)
