@@ -5,7 +5,8 @@ from datetime import UTC, datetime
 
 import pandas as pd
 
-from .constants import APP_ROLES
+from .constants import APP_ROLES, PORTAL_ROLES
+from .permissions import is_active
 from .storage import Registry
 
 
@@ -63,6 +64,12 @@ def add_member(
 ) -> Registry:
     updated = {table: frame.copy() for table, frame in registry.items()}
     members = updated["Members"]
+    if global_role not in PORTAL_ROLES:
+        raise ValueError(f"Invalid global_role {global_role}")
+    normalized_email = email.strip().lower()
+    active_emails = members[members["active"].map(is_active)]["email"].astype(str).str.strip().str.lower()
+    if normalized_email in set(active_emails):
+        raise ValueError(f"Duplicate active member email {normalized_email}")
     row = {
         "member_id": _next_id(members, "member_id", "M"),
         "email": email,
@@ -92,6 +99,8 @@ def deactivate_member(registry: Registry, *, actor_email: str, member_id: str, e
     mask = members["member_id"] == member_id
     if not mask.any():
         raise ValueError(f"Unknown member_id {member_id}")
+    if mask.sum() > 1:
+        raise ValueError(f"Duplicate member_id {member_id}")
     before = members.loc[mask].iloc[0].to_dict()
     members.loc[mask, "active"] = "FALSE"
     members.loc[mask, "end_date"] = end_date
@@ -120,11 +129,14 @@ def grant_app_role(
 ) -> Registry:
     updated = {table: frame.copy() for table, frame in registry.items()}
     app_roles = updated["App_Roles"]
-    if member_id not in set(updated["Members"]["member_id"]):
+    member_ids = {value for value in updated["Members"]["member_id"] if str(value).strip()}
+    app_ids = {value for value in updated["Apps"]["app_id"] if str(value).strip()}
+    team_ids = {value for value in updated["Teams"]["team_id"] if str(value).strip()}
+    if member_id not in member_ids:
         raise ValueError(f"Unknown member_id {member_id}")
-    if app_id not in set(updated["Apps"]["app_id"]):
+    if app_id not in app_ids:
         raise ValueError(f"Unknown app_id {app_id}")
-    if scope_team_id and scope_team_id not in set(updated["Teams"]["team_id"]):
+    if scope_team_id and scope_team_id not in team_ids:
         raise ValueError(f"Unknown scope_team_id {scope_team_id}")
     if app_role not in APP_ROLES:
         raise ValueError(f"Invalid app_role {app_role}")
