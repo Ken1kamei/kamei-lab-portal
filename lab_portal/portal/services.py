@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 
 import pandas as pd
 
+from .constants import APP_ROLES
 from .storage import Registry
 
 
@@ -89,6 +90,8 @@ def deactivate_member(registry: Registry, *, actor_email: str, member_id: str, e
     updated = {table: frame.copy() for table, frame in registry.items()}
     members = updated["Members"].copy()
     mask = members["member_id"] == member_id
+    if not mask.any():
+        raise ValueError(f"Unknown member_id {member_id}")
     before = members.loc[mask].iloc[0].to_dict()
     members.loc[mask, "active"] = "FALSE"
     members.loc[mask, "end_date"] = end_date
@@ -117,6 +120,14 @@ def grant_app_role(
 ) -> Registry:
     updated = {table: frame.copy() for table, frame in registry.items()}
     app_roles = updated["App_Roles"]
+    if member_id not in set(updated["Members"]["member_id"]):
+        raise ValueError(f"Unknown member_id {member_id}")
+    if app_id not in set(updated["Apps"]["app_id"]):
+        raise ValueError(f"Unknown app_id {app_id}")
+    if scope_team_id and scope_team_id not in set(updated["Teams"]["team_id"]):
+        raise ValueError(f"Unknown scope_team_id {scope_team_id}")
+    if app_role not in APP_ROLES:
+        raise ValueError(f"Invalid app_role {app_role}")
     row = {
         "app_role_id": _next_id(app_roles, "app_role_id", "AR"),
         "member_id": member_id,
