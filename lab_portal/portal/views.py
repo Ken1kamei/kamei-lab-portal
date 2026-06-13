@@ -35,13 +35,13 @@ def app_cards(registry: Registry) -> list[dict[str, object]]:
             status = "Inactive"
         cards.append(
             {
-                "app_id": row["app_id"],
-                "label": row["app_name"],
-                "url": row["app_url"],
-                "description": row["description"],
-                "category": row["category"],
+                "app_id": html.escape(str(row["app_id"])),
+                "label": html.escape(str(row["app_name"])),
+                "url": html.escape(str(row["app_url"])),
+                "description": html.escape(str(row["description"])),
+                "category": html.escape(str(row["category"])),
                 "enabled": enabled,
-                "status": status,
+                "status": html.escape(status),
             }
         )
     return cards
