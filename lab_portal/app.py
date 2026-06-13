@@ -71,7 +71,7 @@ def render_home(registry) -> None:
 
 def render_table_page(title: str, subtitle: str, frame) -> None:
     st.html(dashboard_header_html(title, subtitle))
-    st.dataframe(frame, use_container_width=True, hide_index=True)
+    st.dataframe(frame, width="stretch", hide_index=True)
 
 
 def render_member_admin(registry, store, actor_email: str) -> None:
