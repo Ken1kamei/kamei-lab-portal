@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from .constants import APP_ROLES, PORTAL_ROLES, TABLES
+from .permissions import is_active
 from .schema import REQUIRED_COLUMNS
 from .storage import Registry
 
 
 def _active_values(frame):
-    return frame["active"].astype(str).str.upper().isin(["TRUE", "1", "YES", "Y"])
+    return frame["active"].map(is_active)
 
 
 def validate_registry(registry: Registry) -> list[str]:
@@ -33,11 +34,11 @@ def validate_registry(registry: Registry) -> list[str]:
         if row["global_role"] not in PORTAL_ROLES:
             errors.append(f"Members {row['member_id']} has invalid global_role {row['global_role']}")
 
-    member_ids = set(members["member_id"])
+    member_ids = {member_id for member_id in members["member_id"] if str(member_id).strip()}
     teams = registry["Teams"].fillna("")
-    team_ids = set(teams["team_id"])
+    team_ids = {team_id for team_id in teams["team_id"] if str(team_id).strip()}
     apps = registry["Apps"].fillna("")
-    app_ids = set(apps["app_id"])
+    app_ids = {app_id for app_id in apps["app_id"] if str(app_id).strip()}
 
     for _, row in registry["Member_Teams"].fillna("").iterrows():
         if row["member_id"] not in member_ids:

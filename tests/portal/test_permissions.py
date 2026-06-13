@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pandas as pd
+
 from lab_portal.portal.permissions import can_admin_portal, resolve_app_roles, resolve_member_by_email
 from lab_portal.portal.storage import CsvRegistryStore
 
@@ -16,6 +18,15 @@ def test_resolve_member_by_email_returns_active_member():
 def test_resolve_member_by_email_rejects_inactive_member():
     registry = CsvRegistryStore(Path("lab_portal/data/sample")).load()
     registry["Members"].loc[0, "active"] = "FALSE"
+
+    assert resolve_member_by_email(registry, "kkamei@nyu.edu") is None
+
+
+def test_resolve_member_by_email_rejects_duplicate_active_members():
+    registry = CsvRegistryStore(Path("lab_portal/data/sample")).load()
+    duplicate = registry["Members"].iloc[[0]].copy()
+    duplicate.loc[duplicate.index[0], "member_id"] = "M999"
+    registry["Members"] = pd.concat([registry["Members"], duplicate], ignore_index=True)
 
     assert resolve_member_by_email(registry, "kkamei@nyu.edu") is None
 

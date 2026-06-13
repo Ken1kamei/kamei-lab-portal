@@ -30,3 +30,25 @@ def test_unknown_app_role_reference_is_reported():
     errors = validate_registry(registry)
 
     assert "App_Roles AR001 references unknown app_id missing_app" in errors
+
+
+def test_blank_member_reference_is_reported_even_when_blank_member_id_exists():
+    registry = CsvRegistryStore(Path("lab_portal/data/sample")).load()
+    registry["Members"].loc[0, "member_id"] = ""
+    registry["App_Roles"].loc[0, "member_id"] = ""
+
+    errors = validate_registry(registry)
+
+    assert "App_Roles AR001 references unknown member_id " in errors
+
+
+def test_active_values_strip_whitespace():
+    registry = CsvRegistryStore(Path("lab_portal/data/sample")).load()
+    registry["Members"].loc[0, "active"] = " TRUE "
+    duplicate = registry["Members"].iloc[[0]].copy()
+    duplicate.loc[duplicate.index[0], "member_id"] = "M999"
+    registry["Members"] = pd.concat([registry["Members"], duplicate], ignore_index=True)
+
+    errors = validate_registry(registry)
+
+    assert "Duplicate active member email: kkamei@nyu.edu" in errors

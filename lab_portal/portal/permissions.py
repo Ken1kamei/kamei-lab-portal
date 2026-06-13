@@ -13,11 +13,12 @@ def is_active(value: object) -> bool:
 def resolve_member_by_email(registry: Registry, email: str) -> dict[str, str] | None:
     members = registry["Members"].fillna("")
     matches = members[members["email"].str.lower() == email.lower()]
+    active_matches = []
     for _, row in matches.iterrows():
         record = row.to_dict()
         if is_active(record.get("active", "")):
-            return {key: str(value) for key, value in record.items()}
-    return None
+            active_matches.append({key: str(value) for key, value in record.items()})
+    return active_matches[0] if len(active_matches) == 1 else None
 
 
 def can_admin_portal(member: dict[str, str] | None) -> bool:
