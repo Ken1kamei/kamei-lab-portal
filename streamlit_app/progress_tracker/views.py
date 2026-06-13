@@ -8,16 +8,47 @@ import streamlit as st
 
 from .constants import REVIEW_STATUSES, STATUSES
 from .services import review_record, update_progress_record
-from .summary import completed_records, milestone_gantt_data, overview_counts, records_by_member
+from .summary import (
+    completed_records,
+    milestone_gantt_data,
+    overview_summary_rows,
+    records_by_member,
+    team_gantt_data,
+)
 
 
 def render_overview(ledger: dict[str, pd.DataFrame]) -> None:
-    counts = overview_counts(ledger)
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Milestones", counts["milestones_total"])
-    col2.metric("Experiments", counts["experiments_total"])
-    col3.metric("Pending review", counts["pending_review"])
-    col4.metric("Blocked", counts["blocked"])
+    st.subheader("Summary")
+    st.dataframe(overview_summary_rows(ledger), width="stretch", hide_index=True)
+
+    team_gantt = team_gantt_data(ledger)
+    st.subheader("Team Gantt chart")
+    if team_gantt.empty:
+        st.info("No team schedule data available.")
+    else:
+        team_chart = (
+            alt.Chart(team_gantt)
+            .mark_bar()
+            .encode(
+                x=alt.X("start_date:T", title="Start"),
+                x2="end_date:T",
+                y=alt.Y("lane:N", title="Team member / work item", sort=None),
+                color=alt.Color("record_type:N", title="Record type"),
+                tooltip=[
+                    "team_member:N",
+                    "record_type:N",
+                    "project:N",
+                    "aim:N",
+                    "title:N",
+                    "status:N",
+                    "review_status:N",
+                    "start_date:T",
+                    "end_date:T",
+                ],
+            )
+            .properties(height=max(220, 36 * len(team_gantt)))
+        )
+        st.altair_chart(team_chart, width="stretch")
 
     blocked = pd.concat(
         [

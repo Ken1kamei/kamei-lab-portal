@@ -1,7 +1,14 @@
 from pathlib import Path
 
 from streamlit_app.progress_tracker.storage import CsvLedgerStore
-from streamlit_app.progress_tracker.summary import completed_records, milestone_gantt_data, overview_counts, records_by_member
+from streamlit_app.progress_tracker.summary import (
+    completed_records,
+    milestone_gantt_data,
+    overview_counts,
+    overview_summary_rows,
+    records_by_member,
+    team_gantt_data,
+)
 
 
 def test_overview_counts_include_pending_and_blocked():
@@ -12,6 +19,19 @@ def test_overview_counts_include_pending_and_blocked():
     assert counts["experiments_total"] == 1
     assert counts["pending_review"] == 3
     assert counts["blocked"] == 0
+
+
+def test_overview_summary_rows_are_plain_table_data():
+    ledger = CsvLedgerStore(Path("streamlit_app/data/sample")).load()
+    rows = overview_summary_rows(ledger)
+
+    assert list(rows.columns) == ["metric", "value"]
+    assert rows.to_dict("records") == [
+        {"metric": "Milestones", "value": 2},
+        {"metric": "Experiments", "value": 1},
+        {"metric": "Pending review", "value": 3},
+        {"metric": "Blocked", "value": 0},
+    ]
 
 
 def test_records_by_member_includes_member_names():
@@ -42,6 +62,28 @@ def test_milestone_gantt_data_uses_start_and_due_dates():
     first = gantt.loc[gantt["milestone_id"] == "MS001"].iloc[0]
     assert str(first["start_date"].date()) == "2026-06-01"
     assert str(first["end_date"].date()) == "2026-07-15"
+
+
+def test_team_gantt_data_combines_member_milestones_and_experiments():
+    ledger = CsvLedgerStore(Path("streamlit_app/data/sample")).load()
+    gantt = team_gantt_data(ledger)
+
+    assert list(gantt.columns) == [
+        "record_type",
+        "record_id",
+        "team_member",
+        "project",
+        "aim",
+        "title",
+        "status",
+        "review_status",
+        "start_date",
+        "end_date",
+        "lane",
+    ]
+    assert {"Milestone", "Experiment"} == set(gantt["record_type"])
+    assert "Project Lead / Healthy receptive chip setup" in set(gantt["lane"])
+    assert "Lab Member / Hormone conditioning pilot" in set(gantt["lane"])
 
 
 def test_completed_records_include_done_milestones_and_experiments():
