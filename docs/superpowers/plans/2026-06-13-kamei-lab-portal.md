@@ -1879,7 +1879,7 @@ git status --short
 
 Expected: only the intentional README and any sample CSV changes from manual form testing are shown. Revert manual sample CSV edits by editing the CSVs back to their committed sample state before the final commit.
 
-- [ ] **Step 5: Commit documentation**
+- [x] **Step 5: Commit documentation**
 
 Run:
 
