@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime
+from urllib.parse import urlparse
 
 import pandas as pd
 
@@ -129,17 +130,31 @@ def grant_app_role(
 ) -> Registry:
     updated = {table: frame.copy() for table, frame in registry.items()}
     app_roles = updated["App_Roles"]
-    member_ids = {value for value in updated["Members"]["member_id"] if str(value).strip()}
+    members = updated["Members"]
     app_ids = {value for value in updated["Apps"]["app_id"] if str(value).strip()}
     team_ids = {value for value in updated["Teams"]["team_id"] if str(value).strip()}
-    if member_id not in member_ids:
+    member_mask = members["member_id"] == member_id
+    if not member_mask.any():
         raise ValueError(f"Unknown member_id {member_id}")
+    if member_mask.sum() > 1:
+        raise ValueError(f"Duplicate member_id {member_id}")
+    if not is_active(members.loc[member_mask].iloc[0]["active"]):
+        raise ValueError(f"Inactive member_id {member_id}")
     if app_id not in app_ids:
         raise ValueError(f"Unknown app_id {app_id}")
     if scope_team_id and scope_team_id not in team_ids:
         raise ValueError(f"Unknown scope_team_id {scope_team_id}")
     if app_role not in APP_ROLES:
         raise ValueError(f"Invalid app_role {app_role}")
+    duplicate_mask = (
+        (app_roles["member_id"] == member_id)
+        & (app_roles["app_id"] == app_id)
+        & (app_roles["app_role"] == app_role)
+        & (app_roles["scope_team_id"] == scope_team_id)
+        & app_roles["active"].map(is_active)
+    )
+    if duplicate_mask.any():
+        raise ValueError(f"Duplicate active app_role {member_id} {app_id} {app_role}")
     row = {
         "app_role_id": _next_id(app_roles, "app_role_id", "AR"),
         "member_id": member_id,
@@ -159,4 +174,70 @@ def grant_app_role(
         target_id=row["app_role_id"],
         before=None,
         after=row,
+    )
+
+
+def add_team(registry: Registry, *, actor_email: str, team_name: str, description: str) -> Registry:
+    updated = {table: frame.copy() for table, frame in registry.items()}
+    teams = updated["Teams"]
+    normalized_name = team_name.strip()
+    if not normalized_name:
+        raise ValueError("team_name is required")
+    active_team_names = teams[teams["active"].map(is_active)]["team_name"].astype(str).str.strip().str.lower()
+    if normalized_name.lower() in set(active_team_names):
+        raise ValueError(f"Duplicate active team_name {normalized_name.lower()}")
+    row = {
+        "team_id": _next_id(teams, "team_id", "T"),
+        "team_name": normalized_name,
+        "description": description,
+        "active": "TRUE",
+    }
+    updated["Teams"] = pd.concat([teams, pd.DataFrame([row])], ignore_index=True)
+    return _append_audit(
+        updated,
+        actor_email=actor_email,
+        action="team.add",
+        target_type="Teams",
+        target_id=row["team_id"],
+        before=None,
+        after=row,
+    )
+
+
+def update_app_url(
+    registry: Registry,
+    *,
+    actor_email: str,
+    app_id: str,
+    app_url: str,
+    active: str,
+) -> Registry:
+    updated = {table: frame.copy() for table, frame in registry.items()}
+    apps = updated["Apps"].copy()
+    normalized_active = active.strip().upper()
+    normalized_url = app_url.strip()
+    mask = apps["app_id"] == app_id
+    if not mask.any():
+        raise ValueError(f"Unknown app_id {app_id}")
+    if mask.sum() > 1:
+        raise ValueError(f"Duplicate app_id {app_id}")
+    if normalized_active not in {"TRUE", "FALSE"}:
+        raise ValueError(f"Invalid active {active}")
+    if normalized_url:
+        parsed_url = urlparse(normalized_url)
+        if parsed_url.scheme not in {"http", "https"} or not parsed_url.netloc:
+            raise ValueError("app_url must start with http:// or https://")
+    before = apps.loc[mask].iloc[0].to_dict()
+    apps.loc[mask, "app_url"] = normalized_url
+    apps.loc[mask, "active"] = normalized_active
+    after = apps.loc[mask].iloc[0].to_dict()
+    updated["Apps"] = apps
+    return _append_audit(
+        updated,
+        actor_email=actor_email,
+        action="app.update_url",
+        target_type="Apps",
+        target_id=app_id,
+        before=before,
+        after=after,
     )
