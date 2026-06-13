@@ -1,0 +1,6 @@
+app_role_id,member_id,app_id,app_role,scope_team_id,active,start_date,end_date
+AR001,M001,budget,owner,,TRUE,2026-01-01,
+AR002,M001,notebooks_protocols,owner,,TRUE,2026-01-01,
+AR003,M001,project_tracker,owner,,TRUE,2026-01-01,
+AR004,M002,project_tracker,lead,T002,TRUE,2026-01-15,
+AR005,M003,project_tracker,viewer,T002,TRUE,2026-02-01,

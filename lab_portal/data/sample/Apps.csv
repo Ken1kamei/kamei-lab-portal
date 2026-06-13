@@ -1,0 +1,4 @@
+app_id,app_name,app_url,description,category,active,sort_order
+budget,Budget,https://kamei-lab-budget-qff7jmewjwgpft4qyhc7hb.streamlit.app/,Lab budget management,Operations,TRUE,1
+notebooks_protocols,Notebooks/Protocols,https://kamei-lab-notebooks-protocols.streamlit.app/,Lab notebooks and protocols,Knowledge,TRUE,2
+project_tracker,Project Tracker,,Milestones experiments and reviews,Research,FALSE,3

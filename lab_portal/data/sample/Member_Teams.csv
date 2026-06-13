@@ -1,0 +1,4 @@
+member_team_id,member_id,team_id,team_role,active,start_date,end_date
+MT001,M001,T001,lead,TRUE,2026-01-01,
+MT002,M002,T002,lead,TRUE,2026-01-15,
+MT003,M003,T002,member,TRUE,2026-02-01,
