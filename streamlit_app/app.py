@@ -4,8 +4,8 @@ from pathlib import Path
 
 import streamlit as st
 
-from .progress_tracker.storage import CsvLedgerStore
-from .progress_tracker.views import (
+from streamlit_app.progress_tracker.storage import CsvLedgerStore
+from streamlit_app.progress_tracker.views import (
     render_experiments,
     render_member_update_form,
     render_members,
