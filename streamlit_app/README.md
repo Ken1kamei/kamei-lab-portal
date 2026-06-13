@@ -4,11 +4,10 @@ This is a local Streamlit prototype for shared milestone and experiment progress
 
 ## Data Model
 
-The prototype reads and writes CSV files in `streamlit_app/data/sample/`. These CSV files mirror the planned Google Sheet tabs:
+The prototype reads and writes progress CSV files in `streamlit_app/data/sample/`. Member and team data are loaded from the shared Kamei Lab Portal registry in `lab_portal/data/sample/` for local development, or from the configured registry Google Sheet in Streamlit Cloud.
 
-- `Members.csv`
-- `Teams.csv`
-- `Member_Teams.csv`
+The Project Tracker progress CSV files mirror these planned tabs:
+
 - `Projects.csv`
 - `Milestones.csv`
 - `Experiments.csv`
@@ -16,7 +15,7 @@ The prototype reads and writes CSV files in `streamlit_app/data/sample/`. These 
 
 Dropbox experiment folders are stored as URL fields. The app does not store raw experimental data.
 
-`Teams.csv` defines selectable teams. `Member_Teams.csv` links members to teams, so one member can appear in multiple teams. The legacy `team` column in `Members.csv` remains for compatibility, but team filtering uses `Teams.csv` and `Member_Teams.csv` when they are present.
+Selectable teams and member-team assignments come from the Portal registry. This keeps member management centralized across Budget, Notebooks/Protocols, Project Tracker, and the Portal launcher.
 
 ## Run Locally
 
@@ -44,4 +43,4 @@ python -m pytest tests -v
 
 ## Shared Version Direction
 
-After the workflow stabilizes, deploy to Streamlit Cloud and add login-based PI, Lead, and Member permissions. The local CSV adapter should be replaced or complemented by a Google Sheet adapter using the same logical table structure.
+After the workflow stabilizes, deploy to Streamlit Cloud and add login-based PI, Lead, and Member permissions. The app already uses the shared Portal registry path for member/team data; progress tables can be moved to Google Sheets as the next integration step.
