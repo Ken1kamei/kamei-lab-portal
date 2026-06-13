@@ -2,12 +2,19 @@ from __future__ import annotations
 
 from datetime import date
 from pathlib import Path
+import sys
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 import pandas as pd
 import streamlit as st
+from streamlit.errors import StreamlitSecretNotFoundError
 
 from lab_portal.portal.auth import authenticated_email
-from lab_portal.portal.config import registry_store_from_settings, settings_from_mapping
+from lab_portal.portal.config import PortalSettings, registry_store_from_settings, settings_from_mapping
 from lab_portal.portal.constants import APP_ROLES, PORTAL_ROLES
 from lab_portal.portal.permissions import can_admin_portal, resolve_member_by_email
 from lab_portal.portal.services import add_member, add_team, deactivate_member, grant_app_role, update_app_url
@@ -21,8 +28,15 @@ SAMPLE_REGISTRY_DIR = Path(__file__).parent / "data" / "sample"
 
 
 def get_registry_store():
-    settings = settings_from_mapping(st.secrets)
+    settings = get_portal_settings()
     return registry_store_from_settings(settings, SAMPLE_REGISTRY_DIR, _gspread_service_account_from_dict)
+
+
+def get_portal_settings():
+    try:
+        return settings_from_mapping(st.secrets)
+    except StreamlitSecretNotFoundError:
+        return PortalSettings()
 
 
 def load_registry(store=None):
