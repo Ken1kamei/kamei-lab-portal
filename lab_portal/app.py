@@ -19,7 +19,7 @@ from lab_portal.portal.constants import APP_ROLES, PORTAL_ROLES
 from lab_portal.portal.permissions import can_admin_portal, resolve_member_by_email
 from lab_portal.portal.services import add_member, add_team, deactivate_member, grant_app_role, update_app_url
 from lab_portal.portal.theme import apply_theme
-from lab_portal.portal.views import app_cards, dashboard_header_html
+from lab_portal.portal.views import app_card_html, app_cards, dashboard_header_html
 
 
 APP_TITLE = "Kamei Lab Portal"
@@ -53,20 +53,7 @@ def render_home(registry) -> None:
     columns = st.columns(3)
     for index, card in enumerate(cards):
         with columns[index % 3]:
-            st.markdown(
-                f"""
-                <div class="portal-card">
-                  <div class="portal-status">{card['status']}</div>
-                  <div class="portal-card-title">{card['label']}</div>
-                  <div class="portal-card-muted">{card['description']}</div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-            if card["enabled"]:
-                st.link_button(f"Open {card['label']}", str(card["url"]))
-            else:
-                st.button(f"{card['label']} unavailable", disabled=True)
+            st.markdown(app_card_html(card), unsafe_allow_html=True)
 
 
 def render_table_page(title: str, subtitle: str, frame) -> None:

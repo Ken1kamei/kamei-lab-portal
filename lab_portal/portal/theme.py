@@ -49,11 +49,28 @@ def apply_theme() -> None:
           margin-top: 12px;
         }
         .portal-card {
+          display: block;
           border: 1px solid #425074;
           border-radius: 8px;
           background: linear-gradient(145deg, #303851, #202842);
           padding: 22px;
           min-height: 180px;
+          text-decoration: none;
+          transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
+        }
+        .portal-card-link {
+          cursor: pointer;
+        }
+        .portal-card-link:hover,
+        .portal-card-link:focus {
+          border-color: var(--portal-cyan);
+          box-shadow: 0 16px 36px rgba(46, 230, 207, .14);
+          outline: none;
+          transform: translateY(-2px);
+        }
+        .portal-card-disabled {
+          cursor: default;
+          opacity: .7;
         }
         .portal-card-title {
           color: var(--portal-text);

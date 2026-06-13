@@ -46,3 +46,17 @@ def app_cards(registry: Registry) -> list[dict[str, object]]:
             }
         )
     return cards
+
+
+def app_card_html(card: dict[str, object]) -> str:
+    content = (
+        f"<div class=\"portal-status\">{card['status']}</div>"
+        f"<div class=\"portal-card-title\">{card['label']}</div>"
+        f"<div class=\"portal-card-muted\">{card['description']}</div>"
+    )
+    if card["enabled"]:
+        return (
+            f"<a class=\"portal-card portal-card-link\" href=\"{card['display_url']}\" "
+            f"target=\"_blank\" rel=\"noopener noreferrer\">{content}</a>"
+        )
+    return f"<div class=\"portal-card portal-card-disabled\" aria-disabled=\"true\">{content}</div>"

@@ -256,9 +256,9 @@ def test_update_app_url_updates_launcher_and_audit_record():
     assert app["app_url"] == "https://kamei-lab-project-tracker.streamlit.app/"
     assert app["active"] == "TRUE"
     assert updated["Audit_Log"].iloc[-1]["action"] == "app.update_url"
-    assert json.loads(updated["Audit_Log"].iloc[-1]["before"])["active"] == "FALSE"
+    assert json.loads(updated["Audit_Log"].iloc[-1]["before"])["app_url"] == "http://127.0.0.1:8502/"
     assert json.loads(updated["Audit_Log"].iloc[-1]["after"])["active"] == "TRUE"
-    assert registry["Apps"].set_index("app_id").loc["project_tracker", "app_url"] == ""
+    assert registry["Apps"].set_index("app_id").loc["project_tracker", "app_url"] == "http://127.0.0.1:8502/"
 
 
 def test_update_app_url_reports_unknown_app_id():

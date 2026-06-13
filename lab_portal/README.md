@@ -47,7 +47,9 @@ The service account must have edit access to the registry Google Sheet.
 
 - Budget: active launcher card
 - Notebooks/Protocols: active launcher card
-- Project Tracker: can remain inactive or URL-disabled until its production deployment URL is ready
+- Project Tracker: active local implementation card pointing to `http://127.0.0.1:8502/`
+
+When Project Tracker is deployed to Streamlit Cloud, replace the local implementation URL with the production URL from `App Access > Update launcher URL`.
 
 ## Current Admin Scope
 

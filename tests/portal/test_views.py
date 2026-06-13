@@ -1,11 +1,13 @@
 from pathlib import Path
 
 from lab_portal.portal.storage import CsvRegistryStore
-from lab_portal.portal.views import app_cards, dashboard_header_html
+from lab_portal.portal.views import app_card_html, app_cards, dashboard_header_html
 
 
 def test_app_cards_marks_missing_url_as_disabled():
     registry = CsvRegistryStore(Path("lab_portal/data/sample")).load()
+    registry["Apps"].loc[registry["Apps"]["app_id"] == "project_tracker", "app_url"] = ""
+    registry["Apps"].loc[registry["Apps"]["app_id"] == "project_tracker", "active"] = "FALSE"
 
     cards = app_cards(registry)
     tracker = next(card for card in cards if card["app_id"] == "project_tracker")
@@ -13,6 +15,17 @@ def test_app_cards_marks_missing_url_as_disabled():
     assert tracker["label"] == "Project Tracker"
     assert tracker["enabled"] is False
     assert tracker["status"] == "URL needed"
+
+
+def test_app_cards_marks_project_tracker_implementation_url_as_enabled():
+    registry = CsvRegistryStore(Path("lab_portal/data/sample")).load()
+
+    cards = app_cards(registry)
+    tracker = next(card for card in cards if card["app_id"] == "project_tracker")
+
+    assert tracker["enabled"] is True
+    assert tracker["status"] == "Active"
+    assert tracker["url"] == "http://127.0.0.1:8502/"
 
 
 def test_app_cards_marks_active_url_as_enabled():
@@ -68,3 +81,34 @@ def test_app_cards_handles_non_numeric_sort_order():
     cards = app_cards(registry)
 
     assert cards[-1]["app_id"] == "budget"
+
+
+def test_app_card_html_makes_enabled_card_the_link_target():
+    card = {
+        "label": "Budget",
+        "description": "Lab budget management",
+        "display_url": "https://example.edu/budget",
+        "enabled": True,
+        "status": "Active",
+    }
+
+    html = app_card_html(card)
+
+    assert html.startswith('<a class="portal-card portal-card-link"')
+    assert 'href="https://example.edu/budget"' in html
+    assert "Open Budget" not in html
+
+
+def test_app_card_html_does_not_link_disabled_card():
+    card = {
+        "label": "Project Tracker",
+        "description": "Milestones experiments and reviews",
+        "display_url": "",
+        "enabled": False,
+        "status": "URL needed",
+    }
+
+    html = app_card_html(card)
+
+    assert html.startswith('<div class="portal-card portal-card-disabled"')
+    assert "href=" not in html
