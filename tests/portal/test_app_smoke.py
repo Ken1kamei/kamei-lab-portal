@@ -1,6 +1,7 @@
 import importlib
 
 from lab_portal.portal.auth import authenticated_email
+from lab_portal.portal.storage import CsvRegistryStore
 
 
 def test_lab_portal_app_imports():
@@ -8,6 +9,13 @@ def test_lab_portal_app_imports():
 
     assert module.APP_TITLE == "Kamei Lab Portal"
     assert module.VIEWS == ["Home", "Members", "Teams", "App Access", "Audit"]
+
+
+def test_lab_portal_uses_csv_store_without_sheet_secrets(monkeypatch):
+    module = importlib.import_module("lab_portal.app")
+    monkeypatch.setattr(module.st, "secrets", {})
+
+    assert isinstance(module.get_registry_store(), CsvRegistryStore)
 
 
 def test_authenticated_email_uses_dev_environment(monkeypatch):

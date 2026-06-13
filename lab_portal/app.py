@@ -7,10 +7,10 @@ import pandas as pd
 import streamlit as st
 
 from lab_portal.portal.auth import authenticated_email
+from lab_portal.portal.config import registry_store_from_settings, settings_from_mapping
 from lab_portal.portal.constants import APP_ROLES, PORTAL_ROLES
 from lab_portal.portal.permissions import can_admin_portal, resolve_member_by_email
 from lab_portal.portal.services import add_member, add_team, deactivate_member, grant_app_role, update_app_url
-from lab_portal.portal.storage import CsvRegistryStore
 from lab_portal.portal.theme import apply_theme
 from lab_portal.portal.views import app_cards, dashboard_header_html
 
@@ -21,7 +21,8 @@ SAMPLE_REGISTRY_DIR = Path(__file__).parent / "data" / "sample"
 
 
 def get_registry_store():
-    return CsvRegistryStore(SAMPLE_REGISTRY_DIR)
+    settings = settings_from_mapping(st.secrets)
+    return registry_store_from_settings(settings, SAMPLE_REGISTRY_DIR, _gspread_service_account_from_dict)
 
 
 def load_registry(store=None):
@@ -198,6 +199,12 @@ def _app_label(registry, app_id: str) -> str:
 
 def _text_value(value) -> str:
     return "" if pd.isna(value) else str(value)
+
+
+def _gspread_service_account_from_dict(service_account_info):
+    import gspread
+
+    return gspread.service_account_from_dict(service_account_info)
 
 
 def main() -> None:
