@@ -1639,7 +1639,7 @@ git commit -m "feat: add portal admin write flow"
 - Modify: `lab_portal/app.py`
 - Test: `tests/portal/test_config.py`
 
-- [ ] **Step 1: Write failing config tests**
+- [x] **Step 1: Write failing config tests**
 
 Create `tests/portal/test_config.py`:
 
@@ -1692,7 +1692,7 @@ def test_registry_store_uses_google_sheet_when_sheet_settings_exist():
     assert fake_client.opened_key == "sheet-123"
 ```
 
-- [ ] **Step 2: Run config tests to verify they fail**
+- [x] **Step 2: Run config tests to verify they fail**
 
 Run:
 
@@ -1702,7 +1702,7 @@ python -m pytest tests/portal/test_config.py -v
 
 Expected: FAIL with missing `lab_portal.portal.config`.
 
-- [ ] **Step 3: Implement config-driven store selection**
+- [x] **Step 3: Implement config-driven store selection**
 
 Create `lab_portal/portal/config.py`:
 
@@ -1742,7 +1742,7 @@ def registry_store_from_settings(
     return CsvRegistryStore(sample_dir)
 ```
 
-- [ ] **Step 4: Run config tests to verify they pass**
+- [x] **Step 4: Run config tests to verify they pass**
 
 Run:
 
@@ -1752,7 +1752,7 @@ python -m pytest tests/portal/test_config.py -v
 
 Expected: PASS.
 
-- [ ] **Step 5: Wire config into the Streamlit app**
+- [x] **Step 5: Wire config into the Streamlit app**
 
 Modify imports in `lab_portal/app.py`:
 
@@ -1771,7 +1771,7 @@ def registry_store():
     return registry_store_from_settings(settings, SAMPLE_REGISTRY_DIR, gspread.service_account_from_dict)
 ```
 
-- [ ] **Step 6: Run config and app smoke tests**
+- [x] **Step 6: Run config and app smoke tests**
 
 Run:
 
@@ -1781,7 +1781,7 @@ python -m pytest tests/portal/test_config.py tests/portal/test_app_smoke.py -v
 
 Expected: PASS.
 
-- [ ] **Step 7: Commit Google Sheets configuration path**
+- [x] **Step 7: Commit Google Sheets configuration path**
 
 Run:
 
@@ -1796,7 +1796,7 @@ git commit -m "feat: add portal google sheets configuration"
 - Create: `lab_portal/README.md`
 - Modify: `docs/superpowers/plans/2026-06-13-kamei-lab-portal.md`
 
-- [ ] **Step 1: Create portal README**
+- [x] **Step 1: Create portal README**
 
 Create `lab_portal/README.md`:
 
@@ -1843,7 +1843,7 @@ The initial launcher apps are:
 Project Tracker can remain inactive or URL-disabled in the registry until its production deployment URL is ready.
 ````
 
-- [ ] **Step 2: Run all tests**
+- [x] **Step 2: Run all tests**
 
 Run:
 
@@ -1853,7 +1853,7 @@ python -m pytest -v
 
 Expected: all existing Project Tracker tests and new portal tests pass.
 
-- [ ] **Step 3: Run portal manually**
+- [x] **Step 3: Run portal manually**
 
 Run:
 
@@ -1869,7 +1869,7 @@ Expected:
 - Members, Teams, App Access, and Audit pages are visible for `kkamei@nyu.edu`.
 - Adding a member writes to `Members.csv` and appends to `Audit_Log.csv`.
 
-- [ ] **Step 4: Check git status**
+- [x] **Step 4: Check git status**
 
 Run:
 
