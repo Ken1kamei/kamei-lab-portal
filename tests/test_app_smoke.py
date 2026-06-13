@@ -6,6 +6,7 @@ def test_streamlit_app_imports():
     module = importlib.import_module("streamlit_app.app")
     assert hasattr(module, "main")
     assert hasattr(module, "save_ledger")
+    assert module.APP_TITLE == "Project Tracker"
 
 
 def test_streamlit_app_script_path_loads_without_running_main():

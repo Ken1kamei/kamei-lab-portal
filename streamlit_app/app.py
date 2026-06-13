@@ -19,6 +19,7 @@ from streamlit_app.progress_tracker.views import (
 
 
 SAMPLE_LEDGER_DIR = Path(__file__).parent / "data" / "sample"
+APP_TITLE = "Project Tracker"
 
 
 def load_ledger():
@@ -31,7 +32,7 @@ def save_ledger(ledger) -> None:
 
 def main() -> None:
     st.set_page_config(
-        page_title="Endometriosis Progress Tracker",
+        page_title=APP_TITLE,
         page_icon="K",
         layout="wide",
         initial_sidebar_state="expanded",
@@ -56,7 +57,7 @@ def main() -> None:
 
     st.html(
         dashboard_header_html(
-            "Endometriosis Project Progress Tracker",
+            APP_TITLE,
             f"{selected_team} overview - local CSV ledger with Dropbox links",
             active_tab=selected_view,
         )
