@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from datetime import datetime
+import html
 
-import altair as alt
 import pandas as pd
 import streamlit as st
 
@@ -11,44 +11,82 @@ from .services import review_record, update_progress_record
 from .summary import (
     completed_records,
     milestone_gantt_data,
-    overview_summary_rows,
+    overview_counts,
     records_by_member,
     team_gantt_data,
 )
+from .theme import metric_card_html, metric_grid_html
+
+
+def _gantt_chart_html(frame: pd.DataFrame, lane_column: str) -> str:
+    chart_frame = frame.copy()
+    if chart_frame.empty:
+        return ""
+
+    chart_frame["start_date"] = pd.to_datetime(chart_frame["start_date"], errors="coerce")
+    chart_frame["end_date"] = pd.to_datetime(chart_frame["end_date"], errors="coerce")
+    chart_frame = chart_frame.dropna(subset=["start_date", "end_date"])
+    if chart_frame.empty:
+        return ""
+
+    min_date = chart_frame["start_date"].min()
+    max_date = chart_frame["end_date"].max()
+    total_days = max(int((max_date - min_date).days), 1)
+    start_label = min_date.strftime("%b %d")
+    end_label = max_date.strftime("%b %d")
+
+    rows = []
+    for row in chart_frame.itertuples(index=False):
+        start = getattr(row, "start_date")
+        end = getattr(row, "end_date")
+        left = max(0, int((start - min_date).days)) / total_days * 100
+        width = max(3.5, (max(1, int((end - start).days) + 1) / (total_days + 1)) * 100)
+        lane = html.escape(str(getattr(row, lane_column)))
+        record_type = html.escape(str(getattr(row, "record_type", "Milestone")))
+        status = html.escape(str(getattr(row, "status", "")))
+        bar_class = "lab-gantt-bar-experiment" if record_type == "Experiment" else "lab-gantt-bar-milestone"
+        rows.append(
+            f"""
+            <div class="lab-gantt-row">
+              <div>
+                <div class="lab-gantt-label">{lane}</div>
+                <div class="lab-gantt-meta">{record_type} / {status}</div>
+              </div>
+              <div class="lab-gantt-track">
+                <div class="lab-gantt-bar {bar_class}" style="left:{left:.2f}%; width:{width:.2f}%;"></div>
+              </div>
+            </div>
+            """
+        )
+
+    return f"""
+    <div class="lab-gantt">
+      <div class="lab-gantt-scale"><span>{html.escape(start_label)}</span><span>{html.escape(end_label)}</span></div>
+      {''.join(rows)}
+    </div>
+    """
 
 
 def render_overview(ledger: dict[str, pd.DataFrame]) -> None:
     st.subheader("Summary")
-    st.dataframe(overview_summary_rows(ledger), width="stretch", hide_index=True)
+    counts = overview_counts(ledger)
+    st.html(
+        metric_grid_html(
+            [
+                metric_card_html("Milestones", str(counts["milestones_total"]), "active project milestones", "cyan"),
+                metric_card_html("Experiments", str(counts["experiments_total"]), "linked experimental records", "green"),
+                metric_card_html("Pending review", str(counts["pending_review"]), "items awaiting PI or lead review", "amber"),
+                metric_card_html("Blocked", str(counts["blocked"]), "records needing help or unblock", "danger"),
+            ]
+        )
+    )
 
     team_gantt = team_gantt_data(ledger)
-    st.subheader("Team Gantt chart")
+    st.markdown('<div class="lab-chart-title"><span class="lab-handle">::</span>Team Gantt chart</div>', unsafe_allow_html=True)
     if team_gantt.empty:
         st.info("No team schedule data available.")
     else:
-        team_chart = (
-            alt.Chart(team_gantt)
-            .mark_bar()
-            .encode(
-                x=alt.X("start_date:T", title="Start"),
-                x2="end_date:T",
-                y=alt.Y("lane:N", title="Team member / work item", sort=None),
-                color=alt.Color("record_type:N", title="Record type"),
-                tooltip=[
-                    "team_member:N",
-                    "record_type:N",
-                    "project:N",
-                    "aim:N",
-                    "title:N",
-                    "status:N",
-                    "review_status:N",
-                    "start_date:T",
-                    "end_date:T",
-                ],
-            )
-            .properties(height=max(220, 36 * len(team_gantt)))
-        )
-        st.altair_chart(team_chart, width="stretch")
+        st.html(_gantt_chart_html(team_gantt, "lane"))
 
     blocked = pd.concat(
         [
@@ -74,29 +112,10 @@ def render_milestones(ledger: dict[str, pd.DataFrame]) -> None:
     if gantt.empty:
         st.info("No milestone dates available for Gantt chart.")
     else:
-        chart = (
-            alt.Chart(gantt)
-            .mark_bar()
-            .encode(
-                x=alt.X("start_date:T", title="Start"),
-                x2="end_date:T",
-                y=alt.Y("milestone:N", title="Milestone", sort=None),
-                color=alt.Color("status:N", title="Status"),
-                tooltip=[
-                    "project:N",
-                    "aim:N",
-                    "milestone:N",
-                    "time_window:N",
-                    "owner_member_id:N",
-                    "status:N",
-                    "review_status:N",
-                    "start_date:T",
-                    "end_date:T",
-                ],
-            )
-            .properties(height=max(180, 46 * len(gantt)))
-        )
-        st.altair_chart(chart, width="stretch")
+        gantt = gantt.copy()
+        gantt["lane"] = gantt["milestone"]
+        gantt["record_type"] = "Milestone"
+        st.html(_gantt_chart_html(gantt, "lane"))
     st.dataframe(
         frame[
             [

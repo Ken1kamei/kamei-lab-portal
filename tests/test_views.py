@@ -2,6 +2,7 @@ from pathlib import Path
 
 from streamlit_app.progress_tracker import views
 from streamlit_app.progress_tracker.storage import CsvLedgerStore
+from streamlit_app.progress_tracker.summary import team_gantt_data
 
 
 def _sample_ledger():
@@ -74,3 +75,12 @@ def test_review_form_shows_validation_error_and_keeps_ledger(monkeypatch):
 
     assert result is ledger
     assert fake_st.errors == ["Needs revision requires review_note."]
+
+
+def test_gantt_chart_html_contains_rows_and_bars():
+    ledger = _sample_ledger()
+    html = views._gantt_chart_html(team_gantt_data(ledger), "lane")
+
+    assert "lab-gantt" in html
+    assert "Healthy receptive chip setup" in html
+    assert "lab-gantt-bar" in html
