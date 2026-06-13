@@ -37,7 +37,8 @@ def app_cards(registry: Registry) -> list[dict[str, object]]:
             {
                 "app_id": html.escape(str(row["app_id"])),
                 "label": html.escape(str(row["app_name"])),
-                "url": html.escape(str(row["app_url"])),
+                "url": str(row["app_url"]),
+                "display_url": html.escape(str(row["app_url"])),
                 "description": html.escape(str(row["description"])),
                 "category": html.escape(str(row["category"])),
                 "enabled": enabled,

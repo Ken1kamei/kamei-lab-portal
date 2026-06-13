@@ -11,8 +11,8 @@ def authenticated_email() -> str:
 
     user = getattr(st, "user", None)
     if user and getattr(user, "is_logged_in", False):
-        email = user.get("email") if hasattr(user, "get") else None
+        email = user.get("email") if hasattr(user, "get") else getattr(user, "email", None)
         if email:
             return str(email)
 
-    return "kkamei@nyu.edu"
+    return ""

@@ -44,7 +44,8 @@ def test_app_cards_escapes_registry_text_fields():
 
     assert budget["app_id"] == "budget&lt;script&gt;"
     assert budget["label"] == "Budget &lt;script&gt;"
-    assert budget["url"] == "https://example.edu/?q=&lt;bad&gt;"
+    assert budget["url"] == "https://example.edu/?q=<bad>"
+    assert budget["display_url"] == "https://example.edu/?q=&lt;bad&gt;"
     assert budget["description"] == "Use &lt;b&gt;carefully&lt;/b&gt;"
     assert budget["category"] == "Ops &lt;Lab&gt;"
     assert budget["status"] == "Active"
