@@ -105,16 +105,20 @@ def render_review(ledger: dict[str, pd.DataFrame], reviewer_member_id: str) -> d
     review_note = st.text_area("Review note")
     if st.button("Save review"):
         record_id_column = "milestone_id" if record_type == "Milestones" else "experiment_id"
-        return review_record(
-            ledger,
-            table_name=record_type,
-            record_id_column=record_id_column,
-            record_id=record_id,
-            reviewed_by=reviewer_member_id,
-            review_status=review_status,
-            review_note=review_note,
-            timestamp=datetime.now().isoformat(timespec="seconds"),
-        )
+        try:
+            return review_record(
+                ledger,
+                table_name=record_type,
+                record_id_column=record_id_column,
+                record_id=record_id,
+                reviewed_by=reviewer_member_id,
+                review_status=review_status,
+                review_note=review_note,
+                timestamp=datetime.now().isoformat(timespec="seconds"),
+            )
+        except ValueError as exc:
+            st.error(str(exc))
+            return ledger
     return ledger
 
 
@@ -137,19 +141,23 @@ def render_member_update_form(ledger: dict[str, pd.DataFrame], member_id: str) -
     update_note = st.text_area("Update note")
 
     if st.button("Save progress update"):
-        return update_progress_record(
-            ledger,
-            table_name="Experiments",
-            record_id_column="experiment_id",
-            record_id=experiment_id,
-            updated_by=member_id,
-            changes={
-                "status": status,
-                "next_action": next_action,
-                "blocker_reason": blocker_reason,
-                "experiment_data_link": experiment_data_link,
-            },
-            update_note=update_note,
-            timestamp=datetime.now().isoformat(timespec="seconds"),
-        )
+        try:
+            return update_progress_record(
+                ledger,
+                table_name="Experiments",
+                record_id_column="experiment_id",
+                record_id=experiment_id,
+                updated_by=member_id,
+                changes={
+                    "status": status,
+                    "next_action": next_action,
+                    "blocker_reason": blocker_reason,
+                    "experiment_data_link": experiment_data_link,
+                },
+                update_note=update_note,
+                timestamp=datetime.now().isoformat(timespec="seconds"),
+            )
+        except ValueError as exc:
+            st.error(str(exc))
+            return ledger
     return ledger
