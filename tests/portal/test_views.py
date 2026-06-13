@@ -34,13 +34,20 @@ def test_dashboard_header_html_escapes_title():
 
 def test_app_cards_escapes_registry_text_fields():
     registry = CsvRegistryStore(Path("lab_portal/data/sample")).load()
+    registry["Apps"].loc[0, "app_id"] = "budget<script>"
     registry["Apps"].loc[0, "app_name"] = "Budget <script>"
+    registry["Apps"].loc[0, "app_url"] = "https://example.edu/?q=<bad>"
     registry["Apps"].loc[0, "description"] = "Use <b>carefully</b>"
+    registry["Apps"].loc[0, "category"] = "Ops <Lab>"
 
-    budget = next(card for card in app_cards(registry) if card["app_id"] == "budget")
+    budget = next(card for card in app_cards(registry) if card["app_id"] == "budget&lt;script&gt;")
 
+    assert budget["app_id"] == "budget&lt;script&gt;"
     assert budget["label"] == "Budget &lt;script&gt;"
+    assert budget["url"] == "https://example.edu/?q=&lt;bad&gt;"
     assert budget["description"] == "Use &lt;b&gt;carefully&lt;/b&gt;"
+    assert budget["category"] == "Ops &lt;Lab&gt;"
+    assert budget["status"] == "Active"
 
 
 def test_app_cards_marks_inactive_app_with_url_as_inactive():
