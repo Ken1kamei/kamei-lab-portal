@@ -15,6 +15,14 @@ def test_resolve_member_by_email_returns_active_member():
     assert member["global_role"] == "pi"
 
 
+def test_resolve_member_by_email_strips_and_normalizes_case():
+    registry = CsvRegistryStore(Path("lab_portal/data/sample")).load()
+
+    member = resolve_member_by_email(registry, " KKAMEI@NYU.EDU ")
+
+    assert member["member_id"] == "M001"
+
+
 def test_resolve_member_by_email_rejects_inactive_member():
     registry = CsvRegistryStore(Path("lab_portal/data/sample")).load()
     registry["Members"].loc[0, "active"] = "FALSE"

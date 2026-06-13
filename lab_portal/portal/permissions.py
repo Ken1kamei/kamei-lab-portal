@@ -12,7 +12,8 @@ def is_active(value: object) -> bool:
 
 def resolve_member_by_email(registry: Registry, email: str) -> dict[str, str] | None:
     members = registry["Members"].fillna("")
-    matches = members[members["email"].str.lower() == email.lower()]
+    normalized_email = str(email).strip().lower()
+    matches = members[members["email"].astype(str).str.strip().str.lower() == normalized_email]
     active_matches = []
     for _, row in matches.iterrows():
         record = row.to_dict()
