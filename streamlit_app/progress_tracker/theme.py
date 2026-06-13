@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import html
+from urllib.parse import urlencode
 
 import streamlit as st
 
@@ -144,6 +145,10 @@ def apply_theme() -> str:
           text-transform: uppercase;
           letter-spacing: .04em;
           padding: 8px 0;
+          text-decoration: none;
+        }}
+        .lab-top-tab:hover {{
+          color: var(--lab-text);
         }}
         .lab-top-tab-active {{
           color: var(--lab-cyan);
@@ -404,7 +409,11 @@ def sidebar_brand_html(title: str, subtitle: str, card_text: str) -> str:
 def dashboard_header_html(title: str, subtitle: str, active_tab: str = "Overview") -> str:
     tabs = ["Overview", "Members", "Milestones", "Experiments", "Review"]
     tab_html = "\n".join(
-        f'<span class="lab-top-tab{" lab-top-tab-active" if tab == active_tab else ""}">{html.escape(tab)}</span>'
+        (
+            f'<a class="lab-top-tab{" lab-top-tab-active" if tab == active_tab else ""}" '
+            f'href="?{html.escape(urlencode({"view": tab, "theme": "night"}))}" '
+            f'target="_self">{html.escape(tab)}</a>'
+        )
         for tab in tabs
     )
     return f"""

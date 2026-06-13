@@ -20,6 +20,7 @@ from streamlit_app.progress_tracker.views import (
 
 SAMPLE_LEDGER_DIR = Path(__file__).parent / "data" / "sample"
 APP_TITLE = "Project Tracker"
+VIEWS = ["Overview", "Members", "Milestones", "Experiments", "Review"]
 
 
 def load_ledger():
@@ -28,6 +29,11 @@ def load_ledger():
 
 def save_ledger(ledger) -> None:
     CsvLedgerStore(SAMPLE_LEDGER_DIR).save(ledger)
+
+
+def selected_view_from_query(views: list[str]) -> str:
+    view = st.query_params.get("view", views[0])
+    return view if view in views else views[0]
 
 
 def main() -> None:
@@ -40,10 +46,12 @@ def main() -> None:
     apply_theme()
 
     ledger = load_ledger()
-    views = ["Overview", "Members", "Milestones", "Experiments", "Review"]
+    view_from_query = selected_view_from_query(VIEWS)
     with st.sidebar:
         st.html(sidebar_brand_html("Kamei Lab", "Progress Tracker", "Shared research portal"))
-        selected_view = st.radio("View", views)
+        selected_view = st.radio("View", VIEWS, index=VIEWS.index(view_from_query))
+        if st.query_params.get("view") != selected_view:
+            st.query_params["view"] = selected_view
         selected_team = st.selectbox("Team", team_options(ledger))
         display_ledger = filter_ledger_by_team(ledger, selected_team)
         member_names = display_ledger["Members"]["name"].tolist()
