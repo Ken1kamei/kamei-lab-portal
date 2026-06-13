@@ -59,7 +59,7 @@ def update_progress_record(
     index = table.index[mask][0]
     old_status = str(table.at[index, "status"])
     for key, value in changes.items():
-        table.at[index, key] = str(value)
+        table.at[index, key] = "" if value is None else str(value)
     table.at[index, "review_status"] = "Pending"
     table.at[index, "updated_at"] = timestamp
 
