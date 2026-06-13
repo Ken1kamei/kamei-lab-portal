@@ -20,3 +20,9 @@ def test_authenticated_email_returns_empty_without_login(monkeypatch):
     monkeypatch.delenv("PORTAL_DEV_EMAIL", raising=False)
 
     assert authenticated_email() == ""
+
+
+def test_authenticated_email_ignores_empty_dev_environment(monkeypatch):
+    monkeypatch.setenv("PORTAL_DEV_EMAIL", "")
+
+    assert authenticated_email() == ""

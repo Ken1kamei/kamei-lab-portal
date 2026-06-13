@@ -6,7 +6,7 @@ import streamlit as st
 
 
 def authenticated_email() -> str:
-    if "PORTAL_DEV_EMAIL" in os.environ:
+    if os.environ.get("PORTAL_DEV_EMAIL"):
         return os.environ["PORTAL_DEV_EMAIL"]
 
     user = getattr(st, "user", None)
