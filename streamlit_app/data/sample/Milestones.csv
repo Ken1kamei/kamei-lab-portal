@@ -1,3 +1,3 @@
-milestone_id,project_id,project,aim,milestone,time_window,owner_member_id,status,review_status,next_action,due_date,blocker_reason,help_needed_from,updated_at
-MS001,P001,Endometriosis-associated implantation failure on chip,Aim 1,Healthy receptive chip setup,Months 0-3,M002,Preparing,Pending,Confirm hormone conditioning schedule,2026-07-15,,,2026-06-13T09:00:00
-MS002,P001,Endometriosis-associated implantation failure on chip,Aim 1,Blastoid attachment assay,Months 0-3,M003,Planned,Pending,Prepare initial experiment sheet,2026-08-01,,,2026-06-13T09:00:00
+milestone_id,project_id,project,aim,milestone,time_window,owner_member_id,start_date,status,review_status,next_action,due_date,blocker_reason,help_needed_from,updated_at
+MS001,P001,Endometriosis-associated implantation failure on chip,Aim 1,Healthy receptive chip setup,Months 0-3,M002,2026-06-01,Preparing,Pending,Confirm hormone conditioning schedule,2026-07-15,,,2026-06-13T09:00:00
+MS002,P001,Endometriosis-associated implantation failure on chip,Aim 1,Blastoid attachment assay,Months 0-3,M003,2026-07-16,Planned,Pending,Prepare initial experiment sheet,2026-08-01,,,2026-06-13T09:00:00

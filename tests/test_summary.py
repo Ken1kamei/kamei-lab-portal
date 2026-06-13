@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from streamlit_app.progress_tracker.storage import CsvLedgerStore
-from streamlit_app.progress_tracker.summary import overview_counts, records_by_member
+from streamlit_app.progress_tracker.summary import milestone_gantt_data, overview_counts, records_by_member
 
 
 def test_overview_counts_include_pending_and_blocked():
@@ -21,3 +21,24 @@ def test_records_by_member_includes_member_names():
     assert "Lab Member" in set(grouped["member_name"])
     lab_member_rows = grouped[grouped["member_name"] == "Lab Member"]
     assert "Hormone conditioning pilot" in set(lab_member_rows["title"])
+
+
+def test_milestone_gantt_data_uses_start_and_due_dates():
+    ledger = CsvLedgerStore(Path("streamlit_app/data/sample")).load()
+    gantt = milestone_gantt_data(ledger)
+
+    assert list(gantt.columns) == [
+        "milestone_id",
+        "project",
+        "aim",
+        "milestone",
+        "time_window",
+        "owner_member_id",
+        "status",
+        "review_status",
+        "start_date",
+        "end_date",
+    ]
+    first = gantt.loc[gantt["milestone_id"] == "MS001"].iloc[0]
+    assert str(first["start_date"].date()) == "2026-06-01"
+    assert str(first["end_date"].date()) == "2026-07-15"

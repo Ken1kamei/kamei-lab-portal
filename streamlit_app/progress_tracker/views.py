@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from datetime import datetime
 
+import altair as alt
 import pandas as pd
 import streamlit as st
 
 from .constants import REVIEW_STATUSES, STATUSES
 from .services import review_record, update_progress_record
-from .summary import overview_counts, records_by_member
+from .summary import milestone_gantt_data, overview_counts, records_by_member
 
 
 def render_overview(ledger: dict[str, pd.DataFrame]) -> None:
@@ -38,8 +39,48 @@ def render_members(ledger: dict[str, pd.DataFrame]) -> None:
 def render_milestones(ledger: dict[str, pd.DataFrame]) -> None:
     st.subheader("Milestones")
     frame = ledger["Milestones"]
+    gantt = milestone_gantt_data(ledger)
+    if gantt.empty:
+        st.info("No milestone dates available for Gantt chart.")
+    else:
+        chart = (
+            alt.Chart(gantt)
+            .mark_bar()
+            .encode(
+                x=alt.X("start_date:T", title="Start"),
+                x2="end_date:T",
+                y=alt.Y("milestone:N", title="Milestone", sort=None),
+                color=alt.Color("status:N", title="Status"),
+                tooltip=[
+                    "project:N",
+                    "aim:N",
+                    "milestone:N",
+                    "time_window:N",
+                    "owner_member_id:N",
+                    "status:N",
+                    "review_status:N",
+                    "start_date:T",
+                    "end_date:T",
+                ],
+            )
+            .properties(height=max(180, 46 * len(gantt)))
+        )
+        st.altair_chart(chart, width="stretch")
     st.dataframe(
-        frame[["project", "aim", "milestone", "time_window", "owner_member_id", "status", "review_status", "next_action"]],
+        frame[
+            [
+                "project",
+                "aim",
+                "milestone",
+                "time_window",
+                "owner_member_id",
+                "start_date",
+                "due_date",
+                "status",
+                "review_status",
+                "next_action",
+            ]
+        ],
         width="stretch",
     )
 

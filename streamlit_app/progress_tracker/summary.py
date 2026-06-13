@@ -34,3 +34,24 @@ def records_by_member(ledger: dict[str, pd.DataFrame]) -> pd.DataFrame:
     return combined.merge(members, on="member_id", how="left")[
         ["member_name", "record_type", "title", "status", "review_status", "next_action", "due_date"]
     ]
+
+
+def milestone_gantt_data(ledger: dict[str, pd.DataFrame]) -> pd.DataFrame:
+    frame = ledger["Milestones"][
+        [
+            "milestone_id",
+            "project",
+            "aim",
+            "milestone",
+            "time_window",
+            "owner_member_id",
+            "status",
+            "review_status",
+            "start_date",
+            "due_date",
+        ]
+    ].copy()
+    frame["start_date"] = pd.to_datetime(frame["start_date"], errors="coerce")
+    frame["end_date"] = pd.to_datetime(frame["due_date"], errors="coerce")
+    frame = frame.drop(columns=["due_date"])
+    return frame.dropna(subset=["start_date", "end_date"])

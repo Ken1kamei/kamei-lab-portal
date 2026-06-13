@@ -24,6 +24,7 @@ REQUIRED_COLUMNS = {
         "milestone",
         "time_window",
         "owner_member_id",
+        "start_date",
         "status",
         "review_status",
         "next_action",

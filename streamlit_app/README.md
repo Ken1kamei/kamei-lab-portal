@@ -29,11 +29,12 @@ python -m pytest tests -v
 ## Prototype Workflow
 
 1. Select a member name in the sidebar.
-2. Open the Experiments tab.
-3. Update an assigned experiment status, next action, and Dropbox data link.
-4. Save the update.
-5. Open the Review tab.
-6. Approve the pending item or request revision with a review note.
+2. Open the Milestones tab to review the milestone Gantt chart.
+3. Open the Experiments tab.
+4. Update an assigned experiment status, next action, and Dropbox data link.
+5. Save the update.
+6. Open the Review tab.
+7. Approve the pending item or request revision with a review note.
 
 ## Shared Version Direction
 
