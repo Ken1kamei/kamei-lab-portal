@@ -106,7 +106,7 @@ def main() -> None:
     st.html(
         dashboard_header_html(
             APP_TITLE,
-            f"{selected_team} overview - local CSV ledger with Dropbox links",
+            f"{selected_team} overview - shared research ledger with data links",
             active_tab=selected_view,
         )
     )
