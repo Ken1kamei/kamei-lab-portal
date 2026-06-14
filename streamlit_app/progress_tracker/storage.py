@@ -41,6 +41,35 @@ class CsvLedgerStore:
             frame[columns].to_csv(self.directory / f"{table_name}.csv", index=False)
 
 
+class GoogleSheetLedgerStore:
+    def __init__(self, spreadsheet):
+        self.spreadsheet = spreadsheet
+
+    def load(self) -> dict[str, pd.DataFrame]:
+        ledger: dict[str, pd.DataFrame] = {}
+        for table_name, columns in REQUIRED_COLUMNS.items():
+            if table_name in SHARED_REGISTRY_TABLES:
+                ledger[table_name] = pd.DataFrame(columns=columns)
+                continue
+            worksheet = self.spreadsheet.worksheet(table_name)
+            records = worksheet.get_all_records()
+            frame = pd.DataFrame(records)
+            ledger[table_name] = frame.reindex(columns=columns, fill_value="").astype(str)
+        return ledger
+
+    def save(self, ledger: dict[str, pd.DataFrame], table_names: tuple[str, ...] | None = None) -> None:
+        selected_tables = table_names or PROGRESS_TABLES
+        for table_name in selected_tables:
+            if table_name in SHARED_REGISTRY_TABLES:
+                continue
+            columns = REQUIRED_COLUMNS[table_name]
+            worksheet = self.spreadsheet.worksheet(table_name)
+            frame = ledger.get(table_name, pd.DataFrame(columns=columns)).reindex(columns=columns, fill_value="")
+            rows = [list(frame.columns)] + frame.fillna("").astype(str).values.tolist()
+            worksheet.clear()
+            worksheet.update(rows)
+
+
 class SharedRegistryLedgerStore:
     def __init__(self, progress_store: CsvLedgerStore, registry_store):
         self.progress_store = progress_store

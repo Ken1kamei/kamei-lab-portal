@@ -10,6 +10,7 @@ from .storage import CsvRegistryStore, GoogleSheetRegistryStore, RegistryStore
 @dataclass(frozen=True)
 class PortalSettings:
     registry_spreadsheet_id: str = ""
+    progress_spreadsheet_id: str = ""
     service_account_info: dict[str, Any] = field(default_factory=dict)
 
 
@@ -17,6 +18,7 @@ def settings_from_mapping(values: Mapping[str, Any]) -> PortalSettings:
     service_account_info = values.get("gcp_service_account", {})
     return PortalSettings(
         registry_spreadsheet_id=str(values.get("REGISTRY_SPREADSHEET_ID", "")).strip(),
+        progress_spreadsheet_id=str(values.get("PROGRESS_SPREADSHEET_ID", "")).strip(),
         service_account_info=dict(service_account_info) if service_account_info else {},
     )
 

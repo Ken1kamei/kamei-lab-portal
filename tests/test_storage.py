@@ -3,7 +3,30 @@ from pathlib import Path
 import pandas as pd
 
 from lab_portal.portal.storage import CsvRegistryStore
-from streamlit_app.progress_tracker.storage import CsvLedgerStore, SharedRegistryLedgerStore
+from streamlit_app.progress_tracker.storage import CsvLedgerStore, GoogleSheetLedgerStore, SharedRegistryLedgerStore
+
+
+class FakeWorksheet:
+    def __init__(self, records):
+        self.records = records
+        self.updated_rows = None
+
+    def get_all_records(self):
+        return self.records
+
+    def clear(self):
+        self.updated_rows = []
+
+    def update(self, rows):
+        self.updated_rows = rows
+
+
+class FakeSpreadsheet:
+    def __init__(self, worksheets):
+        self.worksheets = worksheets
+
+    def worksheet(self, name):
+        return self.worksheets[name]
 
 
 def test_csv_store_loads_all_sample_tables():
@@ -79,3 +102,48 @@ def test_shared_registry_store_saves_progress_tables_without_overwriting_member_
 
     assert "UP999" in set(raw_reloaded["Updates_Reviews"]["update_id"])
     assert raw_reloaded["Members"].set_index("member_id").loc["M001", "email"] == "kk4801@nyu.edu"
+
+
+def test_google_sheet_ledger_store_loads_progress_tables_and_leaves_shared_tables_empty():
+    spreadsheet = FakeSpreadsheet(
+        {
+            "Projects": FakeWorksheet(
+                [
+                    {
+                        "project_id": "P001",
+                        "project": "Endometriosis",
+                        "aim": "Aim 1",
+                        "owner_member_id": "M001",
+                        "start_date": "2026-06-01",
+                        "target_date": "2026-08-01",
+                        "notes": "Pilot",
+                    }
+                ]
+            ),
+            "Milestones": FakeWorksheet([]),
+            "Experiments": FakeWorksheet([]),
+            "Updates_Reviews": FakeWorksheet([]),
+        }
+    )
+
+    ledger = GoogleSheetLedgerStore(spreadsheet).load()
+
+    assert ledger["Members"].empty
+    assert ledger["Projects"].loc[0, "project_id"] == "P001"
+
+
+def test_google_sheet_ledger_store_saves_only_progress_tables():
+    spreadsheet = FakeSpreadsheet(
+        {
+            "Projects": FakeWorksheet([]),
+            "Milestones": FakeWorksheet([]),
+            "Experiments": FakeWorksheet([]),
+            "Updates_Reviews": FakeWorksheet([]),
+        }
+    )
+    ledger = CsvLedgerStore(Path("streamlit_app/data/sample")).load()
+
+    GoogleSheetLedgerStore(spreadsheet).save(ledger)
+
+    assert spreadsheet.worksheets["Milestones"].updated_rows[0] == list(ledger["Milestones"].columns)
+    assert "Members" not in spreadsheet.worksheets

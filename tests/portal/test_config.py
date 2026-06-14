@@ -17,11 +17,13 @@ def test_settings_from_mapping_reads_registry_values():
     settings = settings_from_mapping(
         {
             "REGISTRY_SPREADSHEET_ID": "sheet-123",
+            "PROGRESS_SPREADSHEET_ID": "progress-456",
             "gcp_service_account": {"client_email": "service@example.iam.gserviceaccount.com"},
         }
     )
 
     assert settings.registry_spreadsheet_id == "sheet-123"
+    assert settings.progress_spreadsheet_id == "progress-456"
     assert settings.service_account_info == {"client_email": "service@example.iam.gserviceaccount.com"}
 
 

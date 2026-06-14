@@ -12,7 +12,7 @@ import streamlit as st
 from streamlit.errors import StreamlitSecretNotFoundError
 
 from lab_portal.portal.config import PortalSettings, registry_store_from_settings, settings_from_mapping
-from streamlit_app.progress_tracker.storage import CsvLedgerStore, SharedRegistryLedgerStore
+from streamlit_app.progress_tracker.storage import CsvLedgerStore, GoogleSheetLedgerStore, SharedRegistryLedgerStore
 from streamlit_app.progress_tracker.summary import filter_ledger_by_team, team_options
 from streamlit_app.progress_tracker.theme import apply_theme, dashboard_header_html, sidebar_brand_html
 from streamlit_app.progress_tracker.views import (
@@ -45,7 +45,15 @@ def get_portal_settings():
 
 
 def get_ledger_store():
-    return SharedRegistryLedgerStore(CsvLedgerStore(SAMPLE_LEDGER_DIR), get_registry_store())
+    return SharedRegistryLedgerStore(get_progress_store(), get_registry_store())
+
+
+def get_progress_store():
+    settings = get_portal_settings()
+    if settings.progress_spreadsheet_id and settings.service_account_info:
+        client = _gspread_service_account_from_dict(settings.service_account_info)
+        return GoogleSheetLedgerStore(client.open_by_key(settings.progress_spreadsheet_id))
+    return CsvLedgerStore(SAMPLE_LEDGER_DIR)
 
 
 def load_ledger(store=None):

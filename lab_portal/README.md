@@ -23,10 +23,17 @@ The shared registry uses these tables. In Google Sheets deployment, each table s
 
 ## Streamlit Cloud Setup
 
+Deploy from:
+
+- Repository: `Ken1kamei/kamei-lab-portal`
+- Branch: `main`
+- Main file path: `lab_portal/app.py`
+
 Configure the portal app secrets with:
 
 ```toml
 REGISTRY_SPREADSHEET_ID = "your-google-sheet-id"
+PROGRESS_SPREADSHEET_ID = "your-google-sheet-id"
 
 [gcp_service_account]
 type = "service_account"
@@ -41,7 +48,7 @@ auth_provider_x509_cert_url = "https://www.googleapis.com/oauth2/v1/certs"
 client_x509_cert_url = "..."
 ```
 
-The service account must have edit access to the registry Google Sheet.
+The service account must have edit access to the registry/progress Google Sheet. `PROGRESS_SPREADSHEET_ID` can use the same Sheet as `REGISTRY_SPREADSHEET_ID` when the workbook includes the Project Tracker tabs.
 
 ## Initial Apps
 
