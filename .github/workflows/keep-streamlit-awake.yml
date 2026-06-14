@@ -1,0 +1,48 @@
+name: Keep Streamlit apps warm
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping Streamlit app entry points
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          urls=(
+            "https://kamei-lab-tools.streamlit.app/"
+            "https://kamei-lab-roadmap.streamlit.app/"
+            "https://kamei-lab-budget-qff7jmewjwgpft4qyhc7hb.streamlit.app/"
+            "https://kamei-lab-notebooks-protocols.streamlit.app/"
+          )
+
+          for url in "${urls[@]}"; do
+            echo "Pinging ${url}"
+            status="$(
+              curl \
+                --silent \
+                --show-error \
+                --max-time 30 \
+                --retry 2 \
+                --retry-delay 5 \
+                --output /dev/null \
+                --write-out "%{http_code}" \
+                "${url}"
+            )"
+
+            case "${status}" in
+              2*|3*)
+                echo "OK ${status} ${url}"
+                ;;
+              *)
+                echo "Unexpected HTTP ${status} for ${url}" >&2
+                exit 1
+                ;;
+            esac
+          done

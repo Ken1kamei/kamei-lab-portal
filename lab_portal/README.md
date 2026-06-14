@@ -28,6 +28,8 @@ Deploy from:
 - Repository: `Ken1kamei/kamei-lab-portal`
 - Branch: `main`
 - Main file path: `lab_portal/app.py`
+- Portal URL: `https://kamei-lab-tools.streamlit.app/`
+- Project Tracker URL: `https://kamei-lab-roadmap.streamlit.app/`
 
 Configure the portal app secrets with:
 
@@ -50,13 +52,15 @@ client_x509_cert_url = "..."
 
 The service account must have edit access to the registry/progress Google Sheet. `PROGRESS_SPREADSHEET_ID` can use the same Sheet as `REGISTRY_SPREADSHEET_ID` when the workbook includes the Project Tracker tabs.
 
+## Sleep Mitigation
+
+Streamlit Community Cloud apps can become inactive when they have not been used for a while. The repository includes `.github/workflows/keep-streamlit-awake.yml`, which pings the deployed lab apps every 10 minutes and can also be run manually from GitHub Actions.
+
 ## Initial Apps
 
-- Budget: active launcher card
-- Notebooks/Protocols: active launcher card
-- Project Tracker: active local implementation card pointing to `http://127.0.0.1:8502/`
-
-When Project Tracker is deployed to Streamlit Cloud, replace the local implementation URL with the production URL from `App Access > Update launcher URL`.
+- Budget: `https://kamei-lab-budget-qff7jmewjwgpft4qyhc7hb.streamlit.app/`
+- Notebooks/Protocols: `https://kamei-lab-notebooks-protocols.streamlit.app/`
+- Project Tracker: `https://kamei-lab-roadmap.streamlit.app/`
 
 ## Current Admin Scope
 
