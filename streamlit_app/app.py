@@ -16,10 +16,12 @@ from streamlit_app.progress_tracker.storage import CsvLedgerStore, GoogleSheetLe
 from streamlit_app.progress_tracker.summary import filter_ledger_by_team, team_options
 from streamlit_app.progress_tracker.theme import apply_theme, dashboard_header_html, sidebar_brand_html
 from streamlit_app.progress_tracker.views import (
+    render_projects,
     render_experiments,
     render_member_update_form,
     render_members,
     render_milestone_update_form,
+    render_milestone_create_form,
     render_milestones,
     render_overview,
     render_review,
@@ -29,7 +31,7 @@ from streamlit_app.progress_tracker.views import (
 SAMPLE_LEDGER_DIR = Path(__file__).parent / "data" / "sample"
 SAMPLE_REGISTRY_DIR = Path(__file__).parents[1] / "lab_portal" / "data" / "sample"
 APP_TITLE = "Project Tracker"
-VIEWS = ["Overview", "Members", "Milestones", "Experiments", "Review"]
+VIEWS = ["Overview", "Projects", "Members", "Milestones", "Experiments", "Review"]
 
 
 def get_registry_store():
@@ -115,11 +117,22 @@ def main() -> None:
         render_overview(display_ledger)
     elif selected_view == "Members":
         render_members(display_ledger)
+    elif selected_view == "Projects":
+        updated_ledger = render_projects(ledger, display_ledger)
+        if updated_ledger is not ledger:
+            save_ledger(updated_ledger, ledger_store)
+            st.success("Project data saved.")
+            st.rerun()
     elif selected_view == "Milestones":
         updated_ledger = render_milestone_update_form(ledger, selected_member_id, display_ledger)
         if updated_ledger is not ledger:
             save_ledger(updated_ledger, ledger_store)
             st.success("Milestone update saved.")
+            st.rerun()
+        created_ledger = render_milestone_create_form(ledger, default_member_id=selected_member_id, display_ledger=display_ledger)
+        if created_ledger is not ledger:
+            save_ledger(created_ledger, ledger_store)
+            st.success("Milestone created.")
             st.rerun()
         render_milestones(display_ledger)
     elif selected_view == "Experiments":

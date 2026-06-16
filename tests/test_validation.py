@@ -1,4 +1,4 @@
-from streamlit_app.progress_tracker.validation import validate_progress_record, validate_review
+from streamlit_app.progress_tracker.validation import validate_progress_record, validate_project_record, validate_review
 
 
 def test_blocked_requires_blocker_reason():
@@ -44,6 +44,18 @@ def test_valid_milestone_owner_is_accepted():
             "status": "Preparing",
             "review_status": "Pending",
             "next_action": "Confirm schedule",
+        }
+    )
+    assert errors == []
+
+
+def test_valid_project_owner_is_accepted():
+    errors = validate_project_record(
+        {
+            "project": "New project",
+            "aim": "Aim 2",
+            "owner_member_id": "M001",
+            "start_date": "2026-06-16",
         }
     )
     assert errors == []

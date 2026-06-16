@@ -40,6 +40,7 @@ def filter_ledger_by_team(ledger: dict[str, pd.DataFrame], team_name: str) -> di
 
     member_ids = member_ids_for_team(ledger, team_name)
     filtered = {table_name: frame.copy() for table_name, frame in ledger.items()}
+    filtered["Projects"] = ledger["Projects"][ledger["Projects"]["owner_member_id"].isin(member_ids)].copy()
     filtered["Members"] = ledger["Members"][ledger["Members"]["member_id"].isin(member_ids)].copy()
     filtered["Milestones"] = ledger["Milestones"][ledger["Milestones"]["owner_member_id"].isin(member_ids)].copy()
     filtered["Experiments"] = ledger["Experiments"][ledger["Experiments"]["member_id"].isin(member_ids)].copy()

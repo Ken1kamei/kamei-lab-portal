@@ -41,6 +41,19 @@ def validate_progress_record(record: dict[str, object]) -> list[str]:
     return errors
 
 
+def validate_project_record(record: dict[str, object]) -> list[str]:
+    errors: list[str] = []
+    if _blank(record.get("project")):
+        errors.append("project is required.")
+    if _blank(record.get("aim")):
+        errors.append("aim is required.")
+    if _blank(record.get("owner_member_id")):
+        errors.append("owner_member_id is required.")
+    if _blank(record.get("start_date")):
+        errors.append("start_date is required.")
+    return errors
+
+
 def validate_review(record: dict[str, object]) -> list[str]:
     errors: list[str] = []
     review_status = str(record.get("review_status", "")).strip()

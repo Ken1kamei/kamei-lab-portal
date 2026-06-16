@@ -12,6 +12,7 @@ def test_streamlit_app_imports():
     assert hasattr(module, "main")
     assert hasattr(module, "save_ledger")
     assert module.APP_TITLE == "Project Tracker"
+    assert "Projects" in module.VIEWS
 
 
 def test_streamlit_app_uses_shared_registry_store_without_sheet_secrets(monkeypatch):

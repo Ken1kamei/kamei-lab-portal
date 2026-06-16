@@ -17,6 +17,8 @@ Dropbox experiment folders are stored as URL fields. The app does not store raw 
 
 Selectable teams and member-team assignments come from the Portal registry. This keeps member management centralized across Budget, Notebooks/Protocols, Project Tracker, and the Portal launcher.
 
+Projects can now be added manually from the `Projects` tab, and milestone creation requires a responsible person. The `Projects` tab also accepts `.xlsx` and `.docx` imports for project and milestone rows. For Excel imports, use sheets named `Projects` and/or `Milestones`. For Word imports, use simple tables whose headers match the corresponding table columns.
+
 ## Run Locally
 
 ```bash
@@ -63,12 +65,13 @@ python -m pytest tests -v
 1. Select `All teams` or a team name in the sidebar.
 2. Select a member name from the members assigned to that team.
 3. Open the Overview tab to review the team Gantt chart.
-4. Open the Milestones tab to review the milestone Gantt chart.
-5. Open the Experiments tab.
-6. Update an assigned experiment status, next action, and Dropbox data link.
-7. Save the update.
-8. Open the Review tab.
-9. Approve the pending item or request revision with a review note.
+4. Open the Projects tab to create a new project or import rows from Excel or Word.
+5. Open the Milestones tab to create a milestone and assign a responsible person.
+6. Open the Experiments tab.
+7. Update an assigned experiment status, next action, and Dropbox data link.
+8. Save the update.
+9. Open the Review tab.
+10. Approve the pending item or request revision with a review note.
 
 ## Shared Version Direction
 

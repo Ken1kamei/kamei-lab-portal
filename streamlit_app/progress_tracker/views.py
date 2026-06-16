@@ -7,7 +7,14 @@ import pandas as pd
 import streamlit as st
 
 from .constants import REVIEW_STATUSES, STATUSES
-from .services import review_record, update_progress_record
+from .services import (
+    create_milestone,
+    create_project,
+    import_from_docx_bytes,
+    import_from_excel_bytes,
+    review_record,
+    update_progress_record,
+)
 from .summary import (
     completed_records,
     milestone_gantt_data,
@@ -105,6 +112,99 @@ def render_members(ledger: dict[str, pd.DataFrame]) -> None:
     st.dataframe(records_by_member(ledger), width="stretch")
 
 
+def _member_options(ledger: dict[str, pd.DataFrame]) -> list[tuple[str, str]]:
+    members = ledger["Members"][["member_id", "name"]].fillna("")
+    return [(str(row.member_id), str(row.name)) for row in members.itertuples() if str(row.member_id).strip()]
+
+
+def _project_options(ledger: dict[str, pd.DataFrame]) -> list[tuple[str, str]]:
+    projects = ledger["Projects"][["project_id", "project", "aim"]].fillna("")
+    return [
+        (str(row.project_id), f"{row.project} - {row.aim}".strip(" -"))
+        for row in projects.itertuples()
+        if str(row.project_id).strip()
+    ]
+
+
+def _owner_selectbox(ledger: dict[str, pd.DataFrame], label: str, key: str) -> str:
+    options = _member_options(ledger)
+    if not options:
+        st.warning("No members are available for assignment.")
+        return ""
+    selected_label = st.selectbox(label, [label_text for _, label_text in options], key=key)
+    for member_id, member_label in options:
+        if member_label == selected_label:
+            return member_id
+    return options[0][0]
+
+
+def _load_import_bytes(uploaded_file) -> bytes:
+    return uploaded_file.getvalue() if uploaded_file is not None else b""
+
+
+def render_projects(
+    ledger: dict[str, pd.DataFrame],
+    display_ledger: dict[str, pd.DataFrame] | None = None,
+) -> dict[str, pd.DataFrame]:
+    st.subheader("Projects")
+    st.caption("Create projects manually or import them from Excel / Word.")
+    source_ledger = display_ledger if display_ledger is not None else ledger
+    frame = source_ledger["Projects"].copy()
+    st.dataframe(
+        frame[["project_id", "project", "aim", "owner_member_id", "start_date", "target_date", "notes"]],
+        width="stretch",
+    )
+
+    with st.expander("Add project", expanded=True):
+        with st.form("add-project"):
+            project = st.text_input("Project name")
+            aim = st.text_input("Aim")
+            owner_member_id = _owner_selectbox(source_ledger, "Project owner", "project-owner")
+            start_date = st.date_input("Start date")
+            target_date = st.date_input("Target date")
+            notes = st.text_area("Notes")
+            submitted = st.form_submit_button("Create project")
+            if submitted:
+                try:
+                    return create_project(
+                        ledger,
+                        project=project,
+                        aim=aim,
+                        owner_member_id=owner_member_id,
+                        start_date=start_date.isoformat(),
+                        target_date=target_date.isoformat(),
+                        notes=notes,
+                    )
+                except ValueError as exc:
+                    st.error(str(exc))
+                    return ledger
+
+    with st.expander("Import projects or milestones", expanded=False):
+        upload = st.file_uploader(
+            "Upload `.xlsx` or `.docx`",
+            type=["xlsx", "docx"],
+            accept_multiple_files=False,
+            key="project-import",
+        )
+        if st.button("Import file", key="import-projects"):
+            if upload is None:
+                st.error("Choose an Excel or Word file first.")
+                return ledger
+            blob = _load_import_bytes(upload)
+            try:
+                if upload.name.lower().endswith(".xlsx"):
+                    return import_from_excel_bytes(ledger, blob)
+                return import_from_docx_bytes(ledger, blob)
+            except ValueError as exc:
+                st.error(str(exc))
+                return ledger
+            except Exception as exc:  # pragma: no cover - narrow UX fallback
+                st.error(f"Could not import {upload.name}: {exc}")
+                return ledger
+
+    return ledger
+
+
 def render_milestones(ledger: dict[str, pd.DataFrame]) -> None:
     st.subheader("Milestones")
     frame = ledger["Milestones"]
@@ -145,6 +245,65 @@ def render_milestones(ledger: dict[str, pd.DataFrame]) -> None:
             ],
             width="stretch",
         )
+
+
+def render_milestone_create_form(
+    ledger: dict[str, pd.DataFrame],
+    *,
+    default_member_id: str | None = None,
+    display_ledger: dict[str, pd.DataFrame] | None = None,
+) -> dict[str, pd.DataFrame]:
+    st.subheader("Add milestone")
+    source_ledger = display_ledger if display_ledger is not None else ledger
+    projects = _project_options(source_ledger)
+    members = _member_options(source_ledger)
+    if not projects:
+        st.info("Create a project first.")
+        return ledger
+    if not members:
+        st.info("No members are available to assign.")
+        return ledger
+
+    with st.form("add-milestone"):
+        project_label = st.selectbox("Project", [label for _, label in projects])
+        project_id = next(project_id for project_id, label in projects if label == project_label)
+        project_row = source_ledger["Projects"].loc[source_ledger["Projects"]["project_id"] == project_id].iloc[0]
+        milestone = st.text_input("Milestone")
+        time_window = st.text_input("Time window")
+        owner_member_id = _owner_selectbox(source_ledger, "Responsible person", "milestone-owner")
+        if default_member_id and default_member_id in set(source_ledger["Members"]["member_id"].astype(str)):
+            owner_member_id = default_member_id
+        start_date = st.date_input("Start date", key="milestone-start")
+        status = st.selectbox("Status", STATUSES)
+        review_status = st.selectbox("Review status", REVIEW_STATUSES, index=0)
+        next_action = st.text_input("Next action")
+        due_date = st.date_input("Due date", key="milestone-due")
+        blocker_reason = st.text_input("Blocker reason", value="")
+        help_needed_from = st.text_input("Help needed from", value="")
+        submitted = st.form_submit_button("Create milestone")
+        if submitted:
+            try:
+                return create_milestone(
+                    ledger,
+                    project_id=project_id,
+                    project=str(project_row["project"]),
+                    aim=str(project_row["aim"]),
+                    milestone=milestone,
+                    time_window=time_window,
+                    owner_member_id=owner_member_id,
+                    start_date=start_date.isoformat(),
+                    status=status,
+                    review_status=review_status,
+                    next_action=next_action,
+                    due_date=due_date.isoformat(),
+                    blocker_reason=blocker_reason,
+                    help_needed_from=help_needed_from,
+                    updated_at=datetime.now().isoformat(timespec="seconds"),
+                )
+            except ValueError as exc:
+                st.error(str(exc))
+                return ledger
+    return ledger
 
 
 def render_experiments(ledger: dict[str, pd.DataFrame]) -> None:
