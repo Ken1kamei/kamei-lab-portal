@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from lab_portal.portal.services import add_member
 from lab_portal.portal.storage import CsvRegistryStore
 from streamlit_app.progress_tracker.storage import CsvLedgerStore, GoogleSheetLedgerStore, SharedRegistryLedgerStore
 
@@ -75,6 +76,36 @@ def test_shared_registry_store_loads_members_and_teams_from_portal_registry():
     assert set(ledger["Teams"]["team_name"]) == {"Core Lab", "Endometriosis Project"}
     assert set(ledger["Member_Teams"]["member_id"]) == {"M001", "M002", "M003"}
     assert "Projects" in ledger
+
+
+def test_shared_registry_store_reflects_new_portal_members():
+    registry = CsvRegistryStore(Path("lab_portal/data/sample")).load()
+    updated_registry = add_member(
+        registry,
+        actor_email="kkamei@nyu.edu",
+        email="new.member@example.edu",
+        name="New Member",
+        display_name="New Member",
+        global_role="member",
+        start_date="2026-06-13",
+        notes="Added through Portal",
+    )
+
+    class FakeRegistryStore:
+        def load(self):
+            return updated_registry
+
+    store = SharedRegistryLedgerStore(
+        CsvLedgerStore(Path("streamlit_app/data/sample")),
+        FakeRegistryStore(),
+    )
+
+    ledger = store.load()
+
+    assert "new.member@example.edu" in set(ledger["Members"]["email"])
+    assert "New Member (new.member@example.edu)" in {
+        f"{name} ({email})" for name, email in ledger["Members"][["name", "email"]].itertuples(index=False, name=None)
+    }
 
 
 def test_shared_registry_store_saves_progress_tables_without_overwriting_member_registry(tmp_path):

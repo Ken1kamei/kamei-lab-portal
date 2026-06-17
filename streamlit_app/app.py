@@ -96,14 +96,17 @@ def main() -> None:
             st.query_params["view"] = selected_view
         selected_team = st.selectbox("Team", team_options(ledger))
         display_ledger = filter_ledger_by_team(ledger, selected_team)
-        member_names = display_ledger["Members"]["name"].tolist()
-        if not member_names:
+        member_rows = display_ledger["Members"][["member_id", "name", "email"]].fillna("")
+        if member_rows.empty:
             st.warning("No members are assigned to this team yet.")
             return
-        selected_member = st.selectbox("Member", member_names)
-        selected_member_id = display_ledger["Members"].set_index("name").loc[selected_member, "member_id"]
+        member_labels = {
+            row["member_id"]: _member_label(row["name"], row["email"])
+            for _, row in member_rows.iterrows()
+        }
+        selected_member_id = st.selectbox("Member", list(member_labels), format_func=lambda value: member_labels[value])
         st.caption(f"Showing: `{selected_team}`")
-        st.caption("Prototype mode: member-name selection. Login roles are planned for Streamlit Cloud.")
+        st.caption("Members registered in Kamei Lab Portal appear here after refresh.")
 
     st.html(
         dashboard_header_html(
@@ -148,6 +151,16 @@ def main() -> None:
             save_ledger(reviewed_ledger, ledger_store)
             st.success("Review saved.")
             st.rerun()
+
+
+def _member_label(name: str, email: str) -> str:
+    name = str(name).strip()
+    email = str(email).strip()
+    if name and email:
+        return f"{name} ({email})"
+    if name:
+        return name
+    return email or "Unnamed member"
 
 
 if __name__ == "__main__":

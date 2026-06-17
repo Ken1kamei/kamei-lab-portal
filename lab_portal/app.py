@@ -55,6 +55,40 @@ def render_home(registry) -> None:
         with columns[index % 3]:
             st.html(app_card_html(card))
 
+    st.markdown("### Lab registry")
+    st.caption("Use the shared registry to manage members, teams, and app access for every app.")
+    registry_columns = st.columns(3)
+    with registry_columns[0]:
+        st.html(
+            """
+            <a class="portal-card portal-card-link" href="?view=Members">
+              <span class="portal-status">Manage</span>
+              <span class="portal-card-title">Members</span>
+              <span class="portal-card-muted">Register new members and deactivate inactive ones.</span>
+            </a>
+            """
+        )
+    with registry_columns[1]:
+        st.html(
+            """
+            <a class="portal-card portal-card-link" href="?view=Teams">
+              <span class="portal-status">Manage</span>
+              <span class="portal-card-title">Teams</span>
+              <span class="portal-card-muted">Create teams and working groups.</span>
+            </a>
+            """
+        )
+    with registry_columns[2]:
+        st.html(
+            """
+            <a class="portal-card portal-card-link" href="?view=App%20Access">
+              <span class="portal-status">Manage</span>
+              <span class="portal-card-title">App access</span>
+              <span class="portal-card-muted">Grant app roles and update app URLs.</span>
+            </a>
+            """
+        )
+
 
 def render_table_page(title: str, subtitle: str, frame) -> None:
     st.html(dashboard_header_html(title, subtitle))
@@ -63,6 +97,7 @@ def render_table_page(title: str, subtitle: str, frame) -> None:
 
 def render_member_admin(registry, store, actor_email: str) -> None:
     st.subheader("Member administration")
+    st.caption("Use this panel to register lab members in the shared registry. Changes flow into the other apps after refresh.")
     with st.form("portal-add-member"):
         st.write("Add member")
         email = st.text_input("Email")
@@ -221,21 +256,36 @@ def main() -> None:
     with st.sidebar:
         st.title("Kamei Lab")
         st.caption("Portal")
-        st.caption(f"Signed in as `{email}`")
-        visible_views = VIEWS if is_admin else ["Home"]
-        view = st.radio("View", visible_views)
+        st.caption(f"Signed in as `{email or 'unknown'}`")
+        if not email:
+            st.warning("Auth is not available here yet. Set `PORTAL_DEV_EMAIL` in secrets for admin actions.")
+        view = st.radio("View", VIEWS)
 
     if view == "Home":
         render_home(registry)
+        st.markdown("### Quick member registration")
+        if is_admin:
+            render_member_admin(registry, store, email)
+        else:
+            st.info("Admin sign-in is required to add or deactivate members.")
     elif view == "Members":
         render_table_page("Members", "Central lab member registry", registry["Members"])
-        render_member_admin(registry, store, email)
+        if is_admin:
+            render_member_admin(registry, store, email)
+        else:
+            st.info("Admin sign-in is required to add or deactivate members.")
     elif view == "Teams":
         render_table_page("Teams", "Lab teams and working groups", registry["Teams"])
-        render_team_admin(registry, store, email)
+        if is_admin:
+            render_team_admin(registry, store, email)
+        else:
+            st.info("Admin sign-in is required to add teams.")
     elif view == "App Access":
         render_table_page("App Access", "Per-app member roles", registry["App_Roles"])
-        render_app_access_admin(registry, store, email)
+        if is_admin:
+            render_app_access_admin(registry, store, email)
+        else:
+            st.info("Admin sign-in is required to manage app access.")
     elif view == "Audit":
         render_table_page("Audit", "Append-only administrative history", registry["Audit_Log"])
 
