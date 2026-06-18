@@ -43,6 +43,30 @@ def test_lab_portal_app_script_path_loads_without_package_path(monkeypatch):
     assert "main" in result
 
 
+def test_lab_portal_auth_configured_detects_default_provider(monkeypatch):
+    module = importlib.import_module("lab_portal.app")
+    monkeypatch.setattr(
+        module.st,
+        "secrets",
+        {
+            "auth": {
+                "client_id": "client",
+                "client_secret": "secret",
+                "server_metadata_url": "https://accounts.google.com/.well-known/openid-configuration",
+            }
+        },
+    )
+
+    assert module.auth_configured() is True
+
+
+def test_lab_portal_auth_configured_is_false_without_auth_secrets(monkeypatch):
+    module = importlib.import_module("lab_portal.app")
+    monkeypatch.setattr(module.st, "secrets", {})
+
+    assert module.auth_configured() is False
+
+
 def test_authenticated_email_uses_dev_environment(monkeypatch):
     monkeypatch.setenv("PORTAL_DEV_EMAIL", "dev@example.edu")
 

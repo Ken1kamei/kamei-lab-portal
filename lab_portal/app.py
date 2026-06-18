@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import date
 from pathlib import Path
 import sys
@@ -72,13 +73,11 @@ def render_home(registry) -> None:
 
 
 def render_registry_nav_button(title: str, description: str, target_view: str) -> None:
-    with st.container(border=True):
-        st.caption("Manage")
-        st.subheader(title)
-        st.caption(description)
-        if st.button(f"Open {title}", key=f"open-{target_view}", use_container_width=True):
-            st.query_params["view"] = target_view
-            st.rerun()
+    key = f"registry_nav_{target_view.lower().replace(' ', '_')}"
+    label = f"Manage\n\n**{title}**\n\n{description}"
+    if st.button(label, key=key, use_container_width=True):
+        st.query_params["view"] = target_view
+        st.rerun()
 
 
 def render_table_page(title: str, subtitle: str, frame) -> None:
@@ -244,15 +243,34 @@ def render_auth_controls(email: str, is_admin: bool) -> None:
         return
 
     st.caption("Signed in as `unknown`")
-    if hasattr(st, "login"):
+    if auth_configured() and hasattr(st, "login"):
         if st.button("Sign in", use_container_width=True):
             try:
                 st.login()
             except Exception as error:
                 st.error(f"Sign in is not configured yet: {error}")
     else:
-        st.warning("Sign in requires Streamlit authentication support.")
-    st.caption("For temporary admin access, set `PORTAL_DEV_EMAIL` in Streamlit secrets.")
+        st.info("Sign in is not configured. Add `[auth]` secrets or set `PORTAL_DEV_EMAIL` for admin access.")
+
+
+def auth_configured() -> bool:
+    try:
+        auth = st.secrets.get("auth", {})
+    except Exception:
+        return False
+    if hasattr(auth, "to_dict"):
+        auth = auth.to_dict()
+    if not isinstance(auth, Mapping):
+        return False
+    if auth.get("client_id") and auth.get("client_secret") and auth.get("server_metadata_url"):
+        return True
+    return any(
+        isinstance(provider, Mapping)
+        and provider.get("client_id")
+        and provider.get("client_secret")
+        and provider.get("server_metadata_url")
+        for provider in auth.values()
+    )
 
 
 def main() -> None:
@@ -276,11 +294,6 @@ def main() -> None:
 
     if view == "Home":
         render_home(registry)
-        st.markdown("### Quick member registration")
-        if is_admin:
-            render_member_admin(registry, store, email)
-        else:
-            st.info("Admin sign-in is required to add or deactivate members.")
     elif view == "Members":
         render_table_page("Members", "Central lab member registry", registry["Members"])
         if is_admin:

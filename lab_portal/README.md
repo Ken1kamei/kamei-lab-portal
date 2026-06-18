@@ -55,7 +55,7 @@ The service account must have edit access to the registry/progress Google Sheet.
 
 ### Sign in
 
-For Streamlit sign in, configure OIDC under `[auth]` in Streamlit Cloud secrets and keep `Authlib>=1.3.2` installed. Google OIDC can be configured like this:
+For Streamlit sign in, configure OIDC under `[auth]` in Streamlit Cloud secrets and keep `Authlib>=1.3.2` installed. The Portal only shows the `Sign in` button when this configuration is present, so admins do not hit an unconfigured login flow. Google OIDC can be configured like this:
 
 ```toml
 [auth]
@@ -66,7 +66,7 @@ client_secret = "your-google-oauth-client-secret"
 server_metadata_url = "https://accounts.google.com/.well-known/openid-configuration"
 ```
 
-The signed-in email must match an active `Members.email` row with `global_role` set to `pi` or `admin` to add members, add teams, or manage app access. For temporary Cloud administration before OIDC is ready, set `PORTAL_DEV_EMAIL = "kkamei@nyu.edu"` in secrets.
+The signed-in email must match an active `Members.email` row with `global_role` set to `pi` or `admin` to add members, add teams, or manage app access. For temporary Cloud administration before OIDC is ready, set `PORTAL_DEV_EMAIL = "kkamei@nyu.edu"` in secrets. When `PORTAL_DEV_EMAIL` is set, the app treats that email as the signed-in admin.
 
 ## Sleep Mitigation
 
