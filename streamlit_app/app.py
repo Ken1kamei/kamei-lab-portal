@@ -16,6 +16,9 @@ from streamlit.errors import StreamlitSecretNotFoundError
 from lab_portal.portal.config import (
     PortalSettings,
     registry_store_from_settings,
+    shared_registry_configuration_message,
+    shared_registry_ready,
+    shared_registry_required,
     settings_from_mapping,
 )
 from lab_portal.portal.storage import GoogleSheetRegistryStore
@@ -78,6 +81,8 @@ def get_progress_store():
             json.dumps(settings.service_account_info, sort_keys=True),
         )
         return GoogleSheetLedgerStore(spreadsheet)
+    if shared_registry_required():
+        raise RuntimeError(shared_registry_configuration_message())
     return CsvLedgerStore(SAMPLE_LEDGER_DIR)
 
 
@@ -120,7 +125,7 @@ def clear_shared_data_cache() -> None:
 
 
 def shared_data_source_labels(settings: PortalSettings) -> tuple[str, str]:
-    registry_source = "Google Sheet" if settings.registry_spreadsheet_id and settings.service_account_info else "Sample CSV"
+    registry_source = "Google Sheet" if shared_registry_ready(settings) else "Sample CSV"
     progress_source = "Google Sheet" if settings.progress_spreadsheet_id and settings.service_account_info else "Sample CSV"
     return registry_source, progress_source
 

@@ -5,6 +5,8 @@ from lab_portal.portal.config import (
     PortalSettings,
     open_spreadsheet_by_key_with_retry,
     registry_store_from_settings,
+    running_on_streamlit_cloud,
+    shared_registry_required,
     settings_from_mapping,
 )
 from lab_portal.portal.storage import CsvRegistryStore, GoogleSheetRegistryStore
@@ -65,6 +67,24 @@ def test_registry_store_uses_csv_when_sheet_settings_are_missing():
     store = registry_store_from_settings(PortalSettings(), Path("lab_portal/data/sample"), lambda info: FakeClient())
 
     assert isinstance(store, CsvRegistryStore)
+
+
+def test_shared_registry_is_required_on_streamlit_cloud(monkeypatch):
+    monkeypatch.setenv("HOME", "/home/adminuser")
+
+    assert running_on_streamlit_cloud() is True
+    assert shared_registry_required() is True
+
+
+def test_registry_store_refuses_csv_on_streamlit_cloud(monkeypatch):
+    monkeypatch.setenv("HOME", "/home/adminuser")
+
+    try:
+        registry_store_from_settings(PortalSettings(), Path("lab_portal/data/sample"), lambda info: FakeClient())
+    except RuntimeError as error:
+        assert "shared Kamei Lab registry is required" in str(error)
+    else:
+        raise AssertionError("Expected missing shared registry secrets to fail on Streamlit Cloud")
 
 
 def test_registry_store_uses_google_sheet_when_sheet_settings_exist():

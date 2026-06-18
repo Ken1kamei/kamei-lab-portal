@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import os
 from pathlib import Path
 import time
 from typing import Any, Callable, Mapping
@@ -10,6 +11,8 @@ from .storage import CsvRegistryStore, GoogleSheetRegistryStore, RegistryStore
 
 DEFAULT_REGISTRY_SPREADSHEET_ID = "1gZU_0tG10O2JuliAq6Hdy3GONVCSBAAuiQAKXNug2Lk"
 DEFAULT_PROGRESS_SPREADSHEET_ID = DEFAULT_REGISTRY_SPREADSHEET_ID
+STREAMLIT_CLOUD_HOME = "/home/adminuser"
+STREAMLIT_CLOUD_SOURCE_ROOT = "/mount/src"
 
 
 @dataclass(frozen=True)
@@ -37,6 +40,26 @@ def settings_from_mapping(values: Mapping[str, Any]) -> PortalSettings:
     )
 
 
+def running_on_streamlit_cloud() -> bool:
+    return os.environ.get("HOME") == STREAMLIT_CLOUD_HOME or str(Path.cwd()).startswith(STREAMLIT_CLOUD_SOURCE_ROOT)
+
+
+def shared_registry_ready(settings: PortalSettings) -> bool:
+    return bool(settings.registry_spreadsheet_id and settings.service_account_info)
+
+
+def shared_registry_required() -> bool:
+    return running_on_streamlit_cloud()
+
+
+def shared_registry_configuration_message() -> str:
+    return (
+        "The shared Kamei Lab registry is required on Streamlit Cloud. "
+        "Set REGISTRY_SPREADSHEET_ID and [gcp_service_account] in this app's Streamlit Cloud secrets, "
+        "and share the central Google Sheet with the service account as an editor."
+    )
+
+
 def registry_store_from_settings(
     settings: PortalSettings,
     sample_dir: Path,
@@ -46,6 +69,8 @@ def registry_store_from_settings(
         client = spreadsheet_factory(settings.service_account_info)
         spreadsheet = open_spreadsheet_by_key_with_retry(client, settings.registry_spreadsheet_id)
         return GoogleSheetRegistryStore(spreadsheet)
+    if shared_registry_required():
+        raise RuntimeError(shared_registry_configuration_message())
     return CsvRegistryStore(sample_dir)
 
 
