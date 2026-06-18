@@ -108,8 +108,17 @@ def render_overview(ledger: dict[str, pd.DataFrame]) -> None:
 
 
 def render_members(ledger: dict[str, pd.DataFrame]) -> None:
+    st.subheader("Member roster")
+    roster_columns = ["member_id", "name", "email", "role", "team", "active"]
+    roster = ledger["Members"].reindex(columns=roster_columns, fill_value="").fillna("")
+    st.dataframe(roster, width="stretch", hide_index=True)
+
     st.subheader("Progress by member")
-    st.dataframe(records_by_member(ledger), width="stretch")
+    progress = records_by_member(ledger)
+    if progress.empty:
+        st.info("No milestone or experiment records are assigned to these members yet.")
+    else:
+        st.dataframe(progress, width="stretch", hide_index=True)
 
 
 def _member_options(ledger: dict[str, pd.DataFrame]) -> list[tuple[str, str]]:

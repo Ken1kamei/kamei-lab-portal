@@ -12,12 +12,13 @@ def _sample_ledger():
 class _FakeStreamlit:
     def __init__(self):
         self.errors: list[str] = []
+        self.dataframes = []
 
     def subheader(self, _label):
         pass
 
-    def dataframe(self, *_args, **_kwargs):
-        pass
+    def dataframe(self, frame, *_args, **_kwargs):
+        self.dataframes.append(frame)
 
     def info(self, _message):
         pass
@@ -53,6 +54,26 @@ def test_member_update_form_shows_validation_error_and_keeps_ledger(monkeypatch)
 
     assert result is ledger
     assert fake_st.errors == ["Blocked records require blocker_reason."]
+
+
+def test_render_members_shows_roster_before_progress_records(monkeypatch):
+    ledger = _sample_ledger()
+    ledger["Members"].loc[len(ledger["Members"])] = {
+        "member_id": "M999",
+        "name": "New Portal Member",
+        "email": "new.portal.member@example.edu",
+        "role": "member",
+        "team": "Core Lab",
+        "lead_id": "",
+        "active": "TRUE",
+    }
+    fake_st = _FakeStreamlit()
+    monkeypatch.setattr(views, "st", fake_st)
+
+    views.render_members(ledger)
+
+    roster = fake_st.dataframes[0]
+    assert "new.portal.member@example.edu" in set(roster["email"])
 
 
 def test_milestone_update_form_shows_validation_error_and_keeps_ledger(monkeypatch):

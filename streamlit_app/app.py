@@ -110,6 +110,15 @@ def save_ledger(ledger, store=None) -> None:
     (store or get_ledger_store()).save(ledger)
 
 
+def clear_shared_data_cache() -> None:
+    _cached_registry_spreadsheet.clear()
+    _cached_progress_spreadsheet.clear()
+    try:
+        st.cache_data.clear()
+    except Exception:
+        pass
+
+
 def _gspread_service_account_from_dict(service_account_info):
     import gspread
 
@@ -165,6 +174,9 @@ def main() -> None:
         selected_member_id = st.selectbox("Member", list(member_labels), format_func=lambda value: member_labels[value])
         st.caption(f"Showing: `{selected_team}`")
         st.caption("Members registered in Kamei Lab Portal appear here after refresh.")
+        if st.button("Refresh shared data", use_container_width=True):
+            clear_shared_data_cache()
+            st.rerun()
 
     st.html(
         dashboard_header_html(
