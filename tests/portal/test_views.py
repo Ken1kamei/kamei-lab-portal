@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from lab_portal.portal.storage import CsvRegistryStore
-from lab_portal.portal.views import app_card_html, app_cards, dashboard_header_html, registry_card_html
+from lab_portal.portal.views import app_card_html, app_cards, dashboard_header_html
 
 
 def test_app_cards_marks_missing_url_as_disabled():
@@ -115,14 +115,3 @@ def test_app_card_html_does_not_link_disabled_card():
     assert html.startswith('<div class="portal-card portal-card-disabled"')
     assert "href=" not in html
 
-
-def test_registry_card_html_matches_portal_card_style_and_links_view():
-    html = registry_card_html(
-        title="Members",
-        description="Register new members",
-        target_view="Members",
-    )
-
-    assert html.startswith('<a class="portal-card portal-card-link"')
-    assert 'href="?view=Members"' in html
-    assert "Open Members" not in html

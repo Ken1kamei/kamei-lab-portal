@@ -94,6 +94,62 @@ def apply_theme() -> None:
           font-weight: 900;
           letter-spacing: .04em;
         }
+        div.st-key-registry_nav_members button,
+        div.st-key-registry_nav_teams button,
+        div.st-key-registry_nav_app_access button {
+          min-height: 180px;
+          display: block;
+          border: 1px solid #425074;
+          border-radius: 8px;
+          background: linear-gradient(145deg, #303851, #202842);
+          padding: 22px;
+          text-align: left;
+          white-space: normal;
+          box-shadow: none;
+          transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
+        }
+        div.st-key-registry_nav_members button:hover,
+        div.st-key-registry_nav_teams button:hover,
+        div.st-key-registry_nav_app_access button:hover,
+        div.st-key-registry_nav_members button:focus,
+        div.st-key-registry_nav_teams button:focus,
+        div.st-key-registry_nav_app_access button:focus {
+          border-color: var(--portal-cyan);
+          box-shadow: 0 16px 36px rgba(46, 230, 207, .14);
+          transform: translateY(-2px);
+        }
+        div.st-key-registry_nav_members button p,
+        div.st-key-registry_nav_teams button p,
+        div.st-key-registry_nav_app_access button p {
+          text-align: left;
+          margin: 0;
+        }
+        div.st-key-registry_nav_members button p:first-child,
+        div.st-key-registry_nav_teams button p:first-child,
+        div.st-key-registry_nav_app_access button p:first-child {
+          color: var(--portal-cyan);
+          font-size: .78rem;
+          text-transform: uppercase;
+          font-weight: 900;
+          letter-spacing: .04em;
+        }
+        div.st-key-registry_nav_members button strong,
+        div.st-key-registry_nav_teams button strong,
+        div.st-key-registry_nav_app_access button strong {
+          display: block;
+          color: var(--portal-text);
+          font-size: 1.2rem;
+          font-weight: 900;
+          margin-top: 18px;
+          margin-bottom: 8px;
+        }
+        div.st-key-registry_nav_members button p:last-child,
+        div.st-key-registry_nav_teams button p:last-child,
+        div.st-key-registry_nav_app_access button p:last-child {
+          color: var(--portal-muted);
+          font-size: .95rem;
+          line-height: 1.35;
+        }
         </style>
         """,
         unsafe_allow_html=True,

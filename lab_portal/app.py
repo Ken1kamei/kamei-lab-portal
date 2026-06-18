@@ -20,7 +20,7 @@ from lab_portal.portal.constants import APP_ROLES, PORTAL_ROLES
 from lab_portal.portal.permissions import can_admin_portal, resolve_member_by_email
 from lab_portal.portal.services import add_member, add_team, deactivate_member, grant_app_role, update_app_url
 from lab_portal.portal.theme import apply_theme
-from lab_portal.portal.views import app_card_html, app_cards, dashboard_header_html, registry_card_html
+from lab_portal.portal.views import app_card_html, app_cards, dashboard_header_html
 
 
 APP_TITLE = "Kamei Lab Portal"
@@ -65,29 +65,19 @@ def render_home(registry) -> None:
     st.caption("Use the shared registry to manage members, teams, and app access for every app.")
     registry_columns = st.columns(3)
     with registry_columns[0]:
-        st.html(
-            registry_card_html(
-                title="Members",
-                description="Register new members and deactivate inactive ones.",
-                target_view="Members",
-            )
-        )
+        render_registry_nav_button("Members", "Register new members and deactivate inactive ones.", "Members")
     with registry_columns[1]:
-        st.html(
-            registry_card_html(
-                title="Teams",
-                description="Create teams and working groups.",
-                target_view="Teams",
-            )
-        )
+        render_registry_nav_button("Teams", "Create teams and working groups.", "Teams")
     with registry_columns[2]:
-        st.html(
-            registry_card_html(
-                title="App access",
-                description="Grant app roles and update app URLs.",
-                target_view="App Access",
-            )
-        )
+        render_registry_nav_button("App access", "Grant app roles and update app URLs.", "App Access")
+
+
+def render_registry_nav_button(title: str, description: str, target_view: str) -> None:
+    key = f"registry_nav_{target_view.lower().replace(' ', '_')}"
+    label = f"Manage\n\n**{title}**\n\n{description}"
+    if st.button(label, key=key, use_container_width=True):
+        st.query_params["view"] = target_view
+        st.rerun()
 
 
 def render_table_page(title: str, subtitle: str, frame) -> None:
