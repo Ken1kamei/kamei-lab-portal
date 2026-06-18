@@ -13,7 +13,12 @@ if str(PROJECT_ROOT) not in sys.path:
 import streamlit as st
 from streamlit.errors import StreamlitSecretNotFoundError
 
-from lab_portal.portal.auth import authenticated_email, clear_session_authenticated_email, oidc_configured
+from lab_portal.portal.auth import (
+    app_url_with_handoff,
+    authenticated_email,
+    clear_session_authenticated_email,
+    oidc_configured,
+)
 from lab_portal.portal.config import (
     PortalSettings,
     registry_store_from_settings,
@@ -241,7 +246,7 @@ def main() -> None:
         st.html(sidebar_brand_html("Kamei Lab", "Progress Tracker", "Shared research portal"))
         portal_settings = get_portal_settings()
         portal_url = portal_settings.portal_app_url or DEFAULT_PORTAL_URL
-        st.link_button("Back to Kamei Lab Portal", portal_url, use_container_width=True)
+        st.link_button("Back to Kamei Lab Portal", app_url_with_handoff(portal_url, email), use_container_width=True)
         if email:
             st.caption(f"Signed in as `{email}`")
             if st.button("Sign out", use_container_width=True):
