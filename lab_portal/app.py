@@ -47,6 +47,11 @@ def save_registry(registry, store=None) -> None:
     (store or get_registry_store()).save(registry)
 
 
+def selected_view_from_query(views: list[str]) -> str:
+    view = st.query_params.get("view", views[0])
+    return view if view in views else views[0]
+
+
 def render_home(registry) -> None:
     st.html(dashboard_header_html(APP_TITLE, "Shared entry point for Kamei Reverse Bioengineering Lab apps"))
     cards = app_cards(registry)
@@ -59,35 +64,21 @@ def render_home(registry) -> None:
     st.caption("Use the shared registry to manage members, teams, and app access for every app.")
     registry_columns = st.columns(3)
     with registry_columns[0]:
-        st.html(
-            """
-            <a class="portal-card portal-card-link" href="?view=Members">
-              <span class="portal-status">Manage</span>
-              <span class="portal-card-title">Members</span>
-              <span class="portal-card-muted">Register new members and deactivate inactive ones.</span>
-            </a>
-            """
-        )
+        render_registry_nav_button("Members", "Register new members and deactivate inactive ones.", "Members")
     with registry_columns[1]:
-        st.html(
-            """
-            <a class="portal-card portal-card-link" href="?view=Teams">
-              <span class="portal-status">Manage</span>
-              <span class="portal-card-title">Teams</span>
-              <span class="portal-card-muted">Create teams and working groups.</span>
-            </a>
-            """
-        )
+        render_registry_nav_button("Teams", "Create teams and working groups.", "Teams")
     with registry_columns[2]:
-        st.html(
-            """
-            <a class="portal-card portal-card-link" href="?view=App%20Access">
-              <span class="portal-status">Manage</span>
-              <span class="portal-card-title">App access</span>
-              <span class="portal-card-muted">Grant app roles and update app URLs.</span>
-            </a>
-            """
-        )
+        render_registry_nav_button("App access", "Grant app roles and update app URLs.", "App Access")
+
+
+def render_registry_nav_button(title: str, description: str, target_view: str) -> None:
+    with st.container(border=True):
+        st.caption("Manage")
+        st.subheader(title)
+        st.caption(description)
+        if st.button(f"Open {title}", key=f"open-{target_view}", use_container_width=True):
+            st.query_params["view"] = target_view
+            st.rerun()
 
 
 def render_table_page(title: str, subtitle: str, frame) -> None:
@@ -243,6 +234,27 @@ def _gspread_service_account_from_dict(service_account_info):
     return gspread.service_account_from_dict(service_account_info)
 
 
+def render_auth_controls(email: str, is_admin: bool) -> None:
+    if email:
+        st.caption(f"Signed in as `{email}`")
+        if not is_admin:
+            st.warning("This account is not an active Portal admin.")
+        if hasattr(st, "logout") and st.button("Sign out", use_container_width=True):
+            st.logout()
+        return
+
+    st.caption("Signed in as `unknown`")
+    if hasattr(st, "login"):
+        if st.button("Sign in", use_container_width=True):
+            try:
+                st.login()
+            except Exception as error:
+                st.error(f"Sign in is not configured yet: {error}")
+    else:
+        st.warning("Sign in requires Streamlit authentication support.")
+    st.caption("For temporary admin access, set `PORTAL_DEV_EMAIL` in Streamlit secrets.")
+
+
 def main() -> None:
     st.set_page_config(page_title=APP_TITLE, page_icon="K", layout="wide", initial_sidebar_state="expanded")
     apply_theme()
@@ -253,13 +265,14 @@ def main() -> None:
     member = resolve_member_by_email(registry, email)
     is_admin = can_admin_portal(member)
 
+    view_from_query = selected_view_from_query(VIEWS)
     with st.sidebar:
         st.title("Kamei Lab")
         st.caption("Portal")
-        st.caption(f"Signed in as `{email or 'unknown'}`")
-        if not email:
-            st.warning("Auth is not available here yet. Set `PORTAL_DEV_EMAIL` in secrets for admin actions.")
-        view = st.radio("View", VIEWS)
+        render_auth_controls(email, is_admin)
+        view = st.radio("View", VIEWS, index=VIEWS.index(view_from_query))
+        if st.query_params.get("view") != view:
+            st.query_params["view"] = view
 
     if view == "Home":
         render_home(registry)

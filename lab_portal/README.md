@@ -34,6 +34,7 @@ Deploy from:
 Configure the portal app secrets with:
 
 ```toml
+PORTAL_APP_URL = "https://kamei-lab-tools.streamlit.app/"
 REGISTRY_SPREADSHEET_ID = "your-google-sheet-id"
 PROGRESS_SPREADSHEET_ID = "your-google-sheet-id"
 
@@ -51,6 +52,21 @@ client_x509_cert_url = "..."
 ```
 
 The service account must have edit access to the registry/progress Google Sheet. `PROGRESS_SPREADSHEET_ID` can use the same Sheet as `REGISTRY_SPREADSHEET_ID` when the workbook includes the Project Tracker tabs.
+
+### Sign in
+
+For Streamlit sign in, configure OIDC under `[auth]` in Streamlit Cloud secrets and keep `Authlib>=1.3.2` installed. Google OIDC can be configured like this:
+
+```toml
+[auth]
+redirect_uri = "https://kamei-lab-tools.streamlit.app/oauth2callback"
+cookie_secret = "replace-with-a-long-random-secret"
+client_id = "your-google-oauth-client-id"
+client_secret = "your-google-oauth-client-secret"
+server_metadata_url = "https://accounts.google.com/.well-known/openid-configuration"
+```
+
+The signed-in email must match an active `Members.email` row with `global_role` set to `pi` or `admin` to add members, add teams, or manage app access. For temporary Cloud administration before OIDC is ready, set `PORTAL_DEV_EMAIL = "kkamei@nyu.edu"` in secrets.
 
 ## Sleep Mitigation
 

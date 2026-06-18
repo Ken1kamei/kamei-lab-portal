@@ -11,6 +11,7 @@ from .storage import CsvRegistryStore, GoogleSheetRegistryStore, RegistryStore
 class PortalSettings:
     registry_spreadsheet_id: str = ""
     progress_spreadsheet_id: str = ""
+    portal_app_url: str = "https://kamei-lab-tools.streamlit.app/"
     service_account_info: dict[str, Any] = field(default_factory=dict)
 
 
@@ -19,6 +20,7 @@ def settings_from_mapping(values: Mapping[str, Any]) -> PortalSettings:
     return PortalSettings(
         registry_spreadsheet_id=str(values.get("REGISTRY_SPREADSHEET_ID", "")).strip(),
         progress_spreadsheet_id=str(values.get("PROGRESS_SPREADSHEET_ID", "")).strip(),
+        portal_app_url=str(values.get("PORTAL_APP_URL", "https://kamei-lab-tools.streamlit.app/")).strip(),
         service_account_info=dict(service_account_info) if service_account_info else {},
     )
 

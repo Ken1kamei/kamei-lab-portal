@@ -49,6 +49,15 @@ def test_authenticated_email_uses_dev_environment(monkeypatch):
     assert authenticated_email() == "dev@example.edu"
 
 
+def test_authenticated_email_uses_dev_secret(monkeypatch):
+    import lab_portal.portal.auth as auth
+
+    monkeypatch.delenv("PORTAL_DEV_EMAIL", raising=False)
+    monkeypatch.setattr(auth.st, "secrets", {"PORTAL_DEV_EMAIL": "secret-admin@example.edu"})
+
+    assert auth.authenticated_email() == "secret-admin@example.edu"
+
+
 def test_authenticated_email_returns_empty_without_login(monkeypatch):
     monkeypatch.delenv("PORTAL_DEV_EMAIL", raising=False)
 

@@ -32,6 +32,7 @@ SAMPLE_LEDGER_DIR = Path(__file__).parent / "data" / "sample"
 SAMPLE_REGISTRY_DIR = Path(__file__).parents[1] / "lab_portal" / "data" / "sample"
 APP_TITLE = "Project Tracker"
 VIEWS = ["Overview", "Projects", "Members", "Milestones", "Experiments", "Review"]
+DEFAULT_PORTAL_URL = "https://kamei-lab-tools.streamlit.app/"
 
 
 def get_registry_store():
@@ -91,6 +92,8 @@ def main() -> None:
     view_from_query = selected_view_from_query(VIEWS)
     with st.sidebar:
         st.html(sidebar_brand_html("Kamei Lab", "Progress Tracker", "Shared research portal"))
+        portal_url = get_portal_settings().portal_app_url or DEFAULT_PORTAL_URL
+        st.link_button("Back to Kamei Lab Portal", portal_url, use_container_width=True)
         selected_view = st.radio("View", VIEWS, index=VIEWS.index(view_from_query))
         if st.query_params.get("view") != selected_view:
             st.query_params["view"] = selected_view

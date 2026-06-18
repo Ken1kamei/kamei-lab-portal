@@ -38,6 +38,7 @@ Configure the app secrets with:
 ```toml
 REGISTRY_SPREADSHEET_ID = "your-google-sheet-id"
 PROGRESS_SPREADSHEET_ID = "your-google-sheet-id"
+PORTAL_APP_URL = "https://kamei-lab-tools.streamlit.app/"
 
 [gcp_service_account]
 type = "service_account"

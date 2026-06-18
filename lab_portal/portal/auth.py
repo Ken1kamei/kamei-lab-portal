@@ -6,8 +6,9 @@ import streamlit as st
 
 
 def authenticated_email() -> str:
-    if os.environ.get("PORTAL_DEV_EMAIL"):
-        return os.environ["PORTAL_DEV_EMAIL"]
+    dev_email = os.environ.get("PORTAL_DEV_EMAIL") or _secret_value("PORTAL_DEV_EMAIL")
+    if dev_email:
+        return dev_email
 
     user = getattr(st, "user", None)
     if user and getattr(user, "is_logged_in", False):
@@ -16,3 +17,10 @@ def authenticated_email() -> str:
             return str(email)
 
     return ""
+
+
+def _secret_value(key: str) -> str:
+    try:
+        return str(st.secrets.get(key, "")).strip()
+    except Exception:
+        return ""
