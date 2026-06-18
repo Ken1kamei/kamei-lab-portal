@@ -31,9 +31,11 @@ def test_streamlit_app_uses_google_sheet_progress_store_with_progress_secret(mon
     class FakeClient:
         def __init__(self):
             self.opened_key = None
+            self.opened_keys = []
 
         def open_by_key(self, key):
             self.opened_key = key
+            self.opened_keys.append(key)
             return {"spreadsheet_key": key}
 
     fake_client = FakeClient()
@@ -50,7 +52,7 @@ def test_streamlit_app_uses_google_sheet_progress_store_with_progress_secret(mon
     store = module.get_ledger_store()
 
     assert isinstance(store.progress_store, GoogleSheetLedgerStore)
-    assert fake_client.opened_key == "progress-sheet-123"
+    assert "progress-sheet-123" in fake_client.opened_keys
 
 
 def test_streamlit_app_reports_shared_data_sources():
