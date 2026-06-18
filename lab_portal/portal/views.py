@@ -55,8 +55,9 @@ def app_card_html(card: dict[str, object]) -> str:
         f"<span class=\"portal-card-muted\">{card['description']}</span>"
     )
     if card["enabled"]:
+        url = html.escape(str(card.get("url") or card.get("display_url") or ""), quote=True)
         return (
-            f"<a class=\"portal-card portal-card-link\" href=\"{card['display_url']}\" "
+            f"<a class=\"portal-card portal-card-link\" href=\"{url}\" "
             f"target=\"_blank\" rel=\"noopener noreferrer\">{content}</a>"
         )
     return f"<div class=\"portal-card portal-card-disabled\" aria-disabled=\"true\">{content}</div>"

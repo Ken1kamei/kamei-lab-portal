@@ -87,7 +87,7 @@ def get_progress_store():
     return CsvLedgerStore(SAMPLE_LEDGER_DIR)
 
 
-@st.cache_resource(ttl=300, show_spinner=False)
+@st.cache_resource(ttl=600, show_spinner=False)
 def _cached_progress_spreadsheet(spreadsheet_id: str, service_account_info_json: str):
     client = _gspread_service_account_from_dict(json.loads(service_account_info_json))
     return open_spreadsheet_by_key_with_retry(client, spreadsheet_id)
@@ -108,17 +108,44 @@ def open_spreadsheet_by_key_with_retry(client, spreadsheet_id: str, attempts: in
     raise ValueError("Spreadsheet id is required.")
 
 
+@st.cache_data(ttl=600, show_spinner=False)
+def _cached_ledger_data(
+    registry_spreadsheet_id: str,
+    progress_spreadsheet_id: str,
+    service_account_info_json: str,
+):
+    registry_spreadsheet = _cached_registry_spreadsheet(registry_spreadsheet_id, service_account_info_json)
+    progress_spreadsheet = _cached_progress_spreadsheet(progress_spreadsheet_id, service_account_info_json)
+    store = SharedRegistryLedgerStore(
+        GoogleSheetLedgerStore(progress_spreadsheet),
+        GoogleSheetRegistryStore(registry_spreadsheet),
+    )
+    return store.load()
+
+
 def load_ledger(store=None):
-    return (store or get_ledger_store()).load()
+    if store is not None:
+        return store.load()
+    settings = get_portal_settings()
+    if settings.registry_spreadsheet_id and settings.progress_spreadsheet_id and settings.service_account_info:
+        service_account_info_json = json.dumps(settings.service_account_info, sort_keys=True)
+        return _cached_ledger_data(
+            settings.registry_spreadsheet_id,
+            settings.progress_spreadsheet_id,
+            service_account_info_json,
+        )
+    return get_ledger_store().load()
 
 
 def save_ledger(ledger, store=None) -> None:
     (store or get_ledger_store()).save(ledger)
+    clear_shared_data_cache()
 
 
 def clear_shared_data_cache() -> None:
     _cached_registry_spreadsheet.clear()
     _cached_progress_spreadsheet.clear()
+    _cached_ledger_data.clear()
     try:
         st.cache_data.clear()
     except Exception:
@@ -185,9 +212,14 @@ def main() -> None:
     )
     apply_theme()
 
+    email = authenticated_email()
+    if not email and oidc_configured():
+        render_login_required()
+        st.stop()
+
     try:
         ledger_store = get_ledger_store()
-        ledger = load_ledger(ledger_store)
+        ledger = load_ledger()
     except Exception as error:
         st.html(dashboard_header_html(APP_TITLE, "Shared research ledger with data links"))
         st.error("The shared project tracker data could not be loaded.")
@@ -199,11 +231,7 @@ def main() -> None:
             st.code(f"{type(error).__name__}: {error}")
         st.stop()
 
-    email = authenticated_email()
     signed_in_member = resolve_ledger_member_by_email(ledger, email)
-    if not email and oidc_configured():
-        render_login_required()
-        st.stop()
     if email and signed_in_member is None:
         render_unregistered_account(email)
         st.stop()

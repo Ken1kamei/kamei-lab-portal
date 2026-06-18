@@ -14,7 +14,13 @@ import pandas as pd
 import streamlit as st
 from streamlit.errors import StreamlitSecretNotFoundError
 
-from lab_portal.portal.auth import authenticated_email, clear_session_authenticated_email, oidc_configured, set_session_authenticated_email
+from lab_portal.portal.auth import (
+    app_url_with_handoff,
+    authenticated_email,
+    clear_session_authenticated_email,
+    oidc_configured,
+    set_session_authenticated_email,
+)
 from lab_portal.portal.config import (
     PortalSettings,
     open_spreadsheet_by_key_with_retry,
@@ -45,13 +51,13 @@ def get_registry_store():
     return registry_store_from_settings(settings, SAMPLE_REGISTRY_DIR, _gspread_service_account_from_dict)
 
 
-@st.cache_resource(ttl=300, show_spinner=False)
+@st.cache_resource(ttl=600, show_spinner=False)
 def _cached_registry_spreadsheet(spreadsheet_id: str, service_account_info_json: str):
     client = _gspread_service_account_from_dict(json.loads(service_account_info_json))
     return open_spreadsheet_by_key_with_retry(client, spreadsheet_id)
 
 
-@st.cache_data(ttl=120, show_spinner=False)
+@st.cache_data(ttl=600, show_spinner=False)
 def _cached_registry_data(spreadsheet_id: str, service_account_info_json: str):
     spreadsheet = _cached_registry_spreadsheet(spreadsheet_id, service_account_info_json)
     return GoogleSheetRegistryStore(spreadsheet).load()
@@ -85,12 +91,14 @@ def selected_view_from_query(views: list[str]) -> str:
     return view if view in views else views[0]
 
 
-def render_home(registry) -> None:
+def render_home(registry, email: str) -> None:
     st.html(dashboard_header_html(APP_TITLE, "Shared entry point for Kamei Reverse Bioengineering Lab apps"))
     cards = app_cards(registry)
     columns = st.columns(3)
     for index, card in enumerate(cards):
         with columns[index % 3]:
+            if card.get("enabled"):
+                card = {**card, "url": app_url_with_handoff(str(card["url"]), email)}
             st.html(app_card_html(card))
 
     st.markdown("### Lab registry")
@@ -520,7 +528,7 @@ def main() -> None:
             st.query_params["view"] = view
 
     if view == "Home":
-        render_home(registry)
+        render_home(registry, email)
     elif view == "Members":
         render_table_page("Members", "Central lab member registry", member_display_frame(registry))
         if is_admin:
