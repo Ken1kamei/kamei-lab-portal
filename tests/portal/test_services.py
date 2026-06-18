@@ -30,6 +30,36 @@ def test_add_member_appends_member_and_audit_record():
     assert json.loads(updated["Audit_Log"].iloc[-1]["after"])["email"] == "new.member@example.edu"
 
 
+def test_add_member_can_assign_teams_and_app_access_for_shared_registry():
+    registry = CsvRegistryStore(Path("lab_portal/data/sample")).load()
+
+    updated = add_member(
+        registry,
+        actor_email="kkamei@nyu.edu",
+        email="shared.member@example.edu",
+        name="Shared Member",
+        display_name="Shared Member",
+        global_role="member",
+        start_date="2026-06-18",
+        notes="Visible across apps",
+        team_ids=["T001", "T002"],
+        team_role="member",
+        app_ids=["budget", "notebooks_protocols", "project_tracker"],
+        app_role="viewer",
+    )
+
+    member = updated["Members"].set_index("email").loc["shared.member@example.edu"]
+    member_id = member["member_id"]
+    member_team_rows = updated["Member_Teams"][updated["Member_Teams"]["member_id"] == member_id]
+    app_role_rows = updated["App_Roles"][updated["App_Roles"]["member_id"] == member_id]
+
+    assert set(member_team_rows["team_id"]) == {"T001", "T002"}
+    assert set(app_role_rows["app_id"]) == {"budget", "notebooks_protocols", "project_tracker"}
+    assert set(app_role_rows["app_role"]) == {"viewer"}
+    assert "member_team.assign" in set(updated["Audit_Log"]["action"])
+    assert "app_role.grant" in set(updated["Audit_Log"]["action"])
+
+
 def test_add_member_reports_invalid_global_role():
     registry = CsvRegistryStore(Path("lab_portal/data/sample")).load()
 

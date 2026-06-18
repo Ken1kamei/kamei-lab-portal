@@ -121,12 +121,31 @@ def render_table_page(title: str, subtitle: str, frame) -> None:
 def render_member_admin(registry, store, actor_email: str) -> None:
     st.subheader("Member administration")
     st.caption("Use this panel to register lab members in the shared registry. Changes flow into the other apps after refresh.")
+    active_teams = registry["Teams"][registry["Teams"]["active"].astype(str).str.upper() == "TRUE"].fillna("")
+    active_apps = registry["Apps"][registry["Apps"]["active"].astype(str).str.upper() == "TRUE"].fillna("")
+    team_options = active_teams["team_id"].astype(str).tolist()
+    app_options = active_apps["app_id"].astype(str).tolist()
+    default_team_ids = [team_id for team_id in team_options if _team_label(registry, team_id) == "Core Lab"] or team_options[:1]
     with st.form("portal-add-member"):
         st.write("Add member")
         email = st.text_input("Email")
         name = st.text_input("Full name")
         display_name = st.text_input("Display name")
         global_role = st.selectbox("Global role", PORTAL_ROLES, index=PORTAL_ROLES.index("member"))
+        selected_team_ids = st.multiselect(
+            "Teams",
+            team_options,
+            default=default_team_ids,
+            format_func=lambda value: _team_label(registry, value),
+        )
+        team_role = st.selectbox("Team role", ["member", "lead", "manager", "viewer"], index=0)
+        selected_app_ids = st.multiselect(
+            "App access",
+            app_options,
+            default=app_options,
+            format_func=lambda value: _app_label(registry, value),
+        )
+        app_role = st.selectbox("App role", APP_ROLES, index=APP_ROLES.index("viewer"))
         start_date = st.date_input("Start date", value=date.today())
         notes = st.text_area("Notes")
         submitted = st.form_submit_button("Add member")
@@ -141,6 +160,10 @@ def render_member_admin(registry, store, actor_email: str) -> None:
                 global_role=global_role,
                 start_date=start_date.isoformat(),
                 notes=notes,
+                team_ids=selected_team_ids,
+                team_role=team_role,
+                app_ids=selected_app_ids,
+                app_role=app_role,
             )
             save_registry(updated, store)
             st.success("Member added.")

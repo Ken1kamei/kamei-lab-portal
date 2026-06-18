@@ -62,6 +62,10 @@ def add_member(
     global_role: str,
     start_date: str,
     notes: str,
+    team_ids: list[str] | None = None,
+    team_role: str = "member",
+    app_ids: list[str] | None = None,
+    app_role: str = "viewer",
 ) -> Registry:
     updated = {table: frame.copy() for table, frame in registry.items()}
     members = updated["Members"]
@@ -83,12 +87,87 @@ def add_member(
         "notes": notes,
     }
     updated["Members"] = pd.concat([members, pd.DataFrame([row])], ignore_index=True)
-    return _append_audit(
+    updated = _append_audit(
         updated,
         actor_email=actor_email,
         action="member.add",
         target_type="Members",
         target_id=row["member_id"],
+        before=None,
+        after=row,
+    )
+    for team_id in team_ids or []:
+        updated = assign_member_to_team(
+            updated,
+            actor_email=actor_email,
+            member_id=row["member_id"],
+            team_id=team_id,
+            team_role=team_role,
+            start_date=start_date,
+        )
+    for app_id in app_ids or []:
+        updated = grant_app_role(
+            updated,
+            actor_email=actor_email,
+            member_id=row["member_id"],
+            app_id=app_id,
+            app_role=app_role,
+            scope_team_id="",
+            start_date=start_date,
+        )
+    return updated
+
+
+def assign_member_to_team(
+    registry: Registry,
+    *,
+    actor_email: str,
+    member_id: str,
+    team_id: str,
+    team_role: str,
+    start_date: str,
+) -> Registry:
+    updated = {table: frame.copy() for table, frame in registry.items()}
+    member_teams = updated["Member_Teams"]
+    members = updated["Members"]
+    teams = updated["Teams"]
+    member_mask = members["member_id"] == member_id
+    if not member_mask.any():
+        raise ValueError(f"Unknown member_id {member_id}")
+    if member_mask.sum() > 1:
+        raise ValueError(f"Duplicate member_id {member_id}")
+    if not is_active(members.loc[member_mask].iloc[0]["active"]):
+        raise ValueError(f"Inactive member_id {member_id}")
+    team_mask = teams["team_id"] == team_id
+    if not team_mask.any():
+        raise ValueError(f"Unknown team_id {team_id}")
+    if team_mask.sum() > 1:
+        raise ValueError(f"Duplicate team_id {team_id}")
+    if not is_active(teams.loc[team_mask].iloc[0]["active"]):
+        raise ValueError(f"Inactive team_id {team_id}")
+    duplicate_mask = (
+        (member_teams["member_id"] == member_id)
+        & (member_teams["team_id"] == team_id)
+        & member_teams["active"].map(is_active)
+    )
+    if duplicate_mask.any():
+        raise ValueError(f"Duplicate active member_team {member_id} {team_id}")
+    row = {
+        "member_team_id": _next_id(member_teams, "member_team_id", "MT"),
+        "member_id": member_id,
+        "team_id": team_id,
+        "team_role": team_role.strip() or "member",
+        "active": "TRUE",
+        "start_date": start_date,
+        "end_date": "",
+    }
+    updated["Member_Teams"] = pd.concat([member_teams, pd.DataFrame([row])], ignore_index=True)
+    return _append_audit(
+        updated,
+        actor_email=actor_email,
+        action="member_team.assign",
+        target_type="Member_Teams",
+        target_id=row["member_team_id"],
         before=None,
         after=row,
     )
