@@ -110,7 +110,7 @@ def test_shared_registry_store_reflects_new_portal_members():
     }
 
 
-def test_shared_registry_store_filters_members_without_project_tracker_access():
+def test_shared_registry_store_keeps_active_members_without_project_tracker_access():
     registry = CsvRegistryStore(Path("lab_portal/data/sample")).load()
     registry["App_Roles"] = registry["App_Roles"][registry["App_Roles"]["member_id"] != "M003"]
 
@@ -125,8 +125,8 @@ def test_shared_registry_store_filters_members_without_project_tracker_access():
 
     ledger = store.load()
 
-    assert "M003" not in set(ledger["Members"]["member_id"])
-    assert "M003" not in set(ledger["Member_Teams"]["member_id"])
+    assert "M003" in set(ledger["Members"]["member_id"])
+    assert "M003" in set(ledger["Member_Teams"]["member_id"])
 
 
 def test_shared_registry_store_saves_progress_tables_without_overwriting_member_registry(tmp_path):

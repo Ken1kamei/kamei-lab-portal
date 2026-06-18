@@ -100,13 +100,10 @@ def _project_tracker_shared_tables(registry: dict[str, pd.DataFrame]) -> dict[st
     active_members = members[members["active"].map(_is_active)].copy()
     active_teams = teams[teams["active"].map(_is_active)].copy()
     active_member_teams = member_teams[member_teams["active"].map(_is_active)].copy()
-    has_app_role_table = {"member_id", "app_id", "active"}.issubset(set(app_roles.columns)) and not app_roles.empty
     active_project_roles = _active_project_tracker_roles(app_roles)
+    members_with_project_roles = set(active_project_roles["member_id"].astype(str))
 
     active_member_ids = set(active_members["member_id"])
-    if has_app_role_table:
-        active_member_ids &= set(active_project_roles["member_id"].astype(str))
-        active_members = active_members[active_members["member_id"].astype(str).isin(active_member_ids)]
     active_team_ids = set(active_teams["team_id"])
     active_member_teams = active_member_teams[
         active_member_teams["member_id"].isin(active_member_ids) & active_member_teams["team_id"].isin(active_team_ids)
@@ -127,7 +124,7 @@ def _project_tracker_shared_tables(registry: dict[str, pd.DataFrame]) -> dict[st
                 "member_id": row["member_id"],
                 "name": row["display_name"] or row["name"],
                 "email": row["email"],
-                "role": row["global_role"],
+                "role": _project_tracker_role_for_member(row, active_project_roles, members_with_project_roles),
                 "team": first_team_by_member.get(row["member_id"], ""),
                 "lead_id": "",
                 "active": "TRUE",
@@ -152,3 +149,21 @@ def _active_project_tracker_roles(app_roles: pd.DataFrame) -> pd.DataFrame:
     return app_roles[
         app_roles["active"].map(_is_active) & app_roles["app_id"].astype(str).isin(PROJECT_TRACKER_APP_IDS)
     ].copy()
+
+
+def _project_tracker_role_for_member(
+    member: pd.Series,
+    active_project_roles: pd.DataFrame,
+    members_with_project_roles: set[str],
+) -> str:
+    member_id = str(member.get("member_id", ""))
+    if member_id in members_with_project_roles:
+        role = str(
+            active_project_roles.loc[
+                active_project_roles["member_id"].astype(str) == member_id,
+                "app_role",
+            ].iloc[0]
+        ).strip()
+        if role:
+            return role
+    return str(member.get("global_role", "") or "member")
