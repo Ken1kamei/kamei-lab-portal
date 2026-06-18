@@ -444,11 +444,14 @@ def render_login_required() -> None:
             </div>
             """
         )
-        if auth_configured() and hasattr(st, "login"):
+        if hasattr(st, "login"):
             if st.button("Sign in with Google", key="portal_login_google", use_container_width=True):
-                st.login()
+                try:
+                    st.login()
+                except Exception as error:
+                    st.error(f"NYU Google login is not configured yet: {error}")
         else:
-            st.error("NYU Google login is not configured yet. Add [auth] OIDC settings in Streamlit Cloud secrets.")
+            st.error("NYU Google login is not available in this Streamlit runtime.")
 
 
 def render_unregistered_account(email: str) -> None:
@@ -500,7 +503,7 @@ def main() -> None:
     member = resolve_member_by_email(registry, email)
     is_admin = can_admin_portal(member)
 
-    if not email and auth_configured():
+    if not email:
         render_login_required()
         st.stop()
     if email and member is None:
