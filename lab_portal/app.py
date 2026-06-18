@@ -14,13 +14,13 @@ import pandas as pd
 import streamlit as st
 from streamlit.errors import StreamlitSecretNotFoundError
 
-from lab_portal.portal.auth import authenticated_email
+from lab_portal.portal.auth import authenticated_email, clear_session_authenticated_email, set_session_authenticated_email
 from lab_portal.portal.config import PortalSettings, registry_store_from_settings, settings_from_mapping
 from lab_portal.portal.constants import APP_ROLES, PORTAL_ROLES
 from lab_portal.portal.permissions import can_admin_portal, resolve_member_by_email
 from lab_portal.portal.services import add_member, add_team, deactivate_member, grant_app_role, update_app_url
 from lab_portal.portal.theme import apply_theme
-from lab_portal.portal.views import app_card_html, app_cards, dashboard_header_html
+from lab_portal.portal.views import app_card_html, app_cards, dashboard_header_html, registry_card_html
 
 
 APP_TITLE = "Kamei Lab Portal"
@@ -65,19 +65,29 @@ def render_home(registry) -> None:
     st.caption("Use the shared registry to manage members, teams, and app access for every app.")
     registry_columns = st.columns(3)
     with registry_columns[0]:
-        render_registry_nav_button("Members", "Register new members and deactivate inactive ones.", "Members")
+        st.html(
+            registry_card_html(
+                title="Members",
+                description="Register new members and deactivate inactive ones.",
+                target_view="Members",
+            )
+        )
     with registry_columns[1]:
-        render_registry_nav_button("Teams", "Create teams and working groups.", "Teams")
+        st.html(
+            registry_card_html(
+                title="Teams",
+                description="Create teams and working groups.",
+                target_view="Teams",
+            )
+        )
     with registry_columns[2]:
-        render_registry_nav_button("App access", "Grant app roles and update app URLs.", "App Access")
-
-
-def render_registry_nav_button(title: str, description: str, target_view: str) -> None:
-    key = f"registry_nav_{target_view.lower().replace(' ', '_')}"
-    label = f"Manage\n\n**{title}**\n\n{description}"
-    if st.button(label, key=key, use_container_width=True):
-        st.query_params["view"] = target_view
-        st.rerun()
+        st.html(
+            registry_card_html(
+                title="App access",
+                description="Grant app roles and update app URLs.",
+                target_view="App Access",
+            )
+        )
 
 
 def render_table_page(title: str, subtitle: str, frame) -> None:
@@ -233,13 +243,16 @@ def _gspread_service_account_from_dict(service_account_info):
     return gspread.service_account_from_dict(service_account_info)
 
 
-def render_auth_controls(email: str, is_admin: bool) -> None:
+def render_auth_controls(email: str, is_admin: bool, registry) -> None:
     if email:
         st.caption(f"Signed in as `{email}`")
         if not is_admin:
             st.warning("This account is not an active Portal admin.")
-        if hasattr(st, "logout") and st.button("Sign out", use_container_width=True):
-            st.logout()
+        if st.button("Sign out", use_container_width=True):
+            clear_session_authenticated_email()
+            if hasattr(st, "logout"):
+                st.logout()
+            st.rerun()
         return
 
     st.caption("Signed in as `unknown`")
@@ -249,8 +262,30 @@ def render_auth_controls(email: str, is_admin: bool) -> None:
                 st.login()
             except Exception as error:
                 st.error(f"Sign in is not configured yet: {error}")
+    elif admin_passcode_configured():
+        render_passcode_signin(registry)
     else:
-        st.info("Sign in is not configured. Add `[auth]` secrets or set `PORTAL_DEV_EMAIL` for admin access.")
+        st.info("Sign in is not configured. Add `[auth]`, `PORTAL_ADMIN_PASSCODE`, or `PORTAL_DEV_EMAIL` in Streamlit secrets.")
+
+
+def render_passcode_signin(registry) -> None:
+    with st.form("portal-passcode-signin"):
+        admin_email = st.text_input("Admin email")
+        passcode = st.text_input("Access code", type="password")
+        submitted = st.form_submit_button("Sign in")
+    if not submitted:
+        return
+
+    if passcode != portal_admin_passcode():
+        st.error("Access code is incorrect.")
+        return
+    member = resolve_member_by_email(registry, admin_email)
+    if not can_admin_portal(member):
+        st.error("This email is not an active Portal admin.")
+        return
+    set_session_authenticated_email(admin_email)
+    st.success("Signed in.")
+    st.rerun()
 
 
 def auth_configured() -> bool:
@@ -273,6 +308,17 @@ def auth_configured() -> bool:
     )
 
 
+def admin_passcode_configured() -> bool:
+    return bool(portal_admin_passcode())
+
+
+def portal_admin_passcode() -> str:
+    try:
+        return str(st.secrets.get("PORTAL_ADMIN_PASSCODE", "")).strip()
+    except Exception:
+        return ""
+
+
 def main() -> None:
     st.set_page_config(page_title=APP_TITLE, page_icon="K", layout="wide", initial_sidebar_state="expanded")
     apply_theme()
@@ -287,7 +333,7 @@ def main() -> None:
     with st.sidebar:
         st.title("Kamei Lab")
         st.caption("Portal")
-        render_auth_controls(email, is_admin)
+        render_auth_controls(email, is_admin, registry)
         view = st.radio("View", VIEWS, index=VIEWS.index(view_from_query))
         if st.query_params.get("view") != view:
             st.query_params["view"] = view

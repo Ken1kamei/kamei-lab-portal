@@ -94,49 +94,6 @@ def apply_theme() -> None:
           font-weight: 900;
           letter-spacing: .04em;
         }
-        div.st-key-registry_nav_members button,
-        div.st-key-registry_nav_teams button,
-        div.st-key-registry_nav_app_access button {
-          min-height: 220px;
-          align-items: flex-start;
-          justify-content: flex-start;
-          text-align: left;
-          white-space: pre-wrap;
-          border: 1px solid #425074;
-          border-radius: 8px;
-          background: linear-gradient(145deg, #303851, #202842);
-          color: var(--portal-text);
-          padding: 24px 28px;
-          line-height: 1.45;
-          box-shadow: none;
-          transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
-        }
-        div.st-key-registry_nav_members button:hover,
-        div.st-key-registry_nav_teams button:hover,
-        div.st-key-registry_nav_app_access button:hover,
-        div.st-key-registry_nav_members button:focus,
-        div.st-key-registry_nav_teams button:focus,
-        div.st-key-registry_nav_app_access button:focus {
-          border-color: var(--portal-cyan);
-          box-shadow: 0 16px 36px rgba(46, 230, 207, .14);
-          transform: translateY(-2px);
-        }
-        div.st-key-registry_nav_members button p,
-        div.st-key-registry_nav_teams button p,
-        div.st-key-registry_nav_app_access button p {
-          font-size: 1rem;
-          color: var(--portal-muted);
-          text-align: left;
-        }
-        div.st-key-registry_nav_members button strong,
-        div.st-key-registry_nav_teams button strong,
-        div.st-key-registry_nav_app_access button strong {
-          display: block;
-          color: var(--portal-text);
-          font-size: 1.85rem;
-          font-weight: 900;
-          margin: 28px 0 12px;
-        }
         </style>
         """,
         unsafe_allow_html=True,

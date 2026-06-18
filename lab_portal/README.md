@@ -37,6 +37,7 @@ Configure the portal app secrets with:
 PORTAL_APP_URL = "https://kamei-lab-tools.streamlit.app/"
 REGISTRY_SPREADSHEET_ID = "your-google-sheet-id"
 PROGRESS_SPREADSHEET_ID = "your-google-sheet-id"
+PORTAL_ADMIN_PASSCODE = "temporary-admin-passcode"
 
 [gcp_service_account]
 type = "service_account"
@@ -66,7 +67,7 @@ client_secret = "your-google-oauth-client-secret"
 server_metadata_url = "https://accounts.google.com/.well-known/openid-configuration"
 ```
 
-The signed-in email must match an active `Members.email` row with `global_role` set to `pi` or `admin` to add members, add teams, or manage app access. For temporary Cloud administration before OIDC is ready, set `PORTAL_DEV_EMAIL = "kkamei@nyu.edu"` in secrets. When `PORTAL_DEV_EMAIL` is set, the app treats that email as the signed-in admin.
+The signed-in email must match an active `Members.email` row with `global_role` set to `pi` or `admin` to add members, add teams, or manage app access. For temporary Cloud administration before OIDC is ready, set `PORTAL_ADMIN_PASSCODE` in secrets and sign in with an admin email plus that passcode. For fully automatic temporary admin access, set `PORTAL_DEV_EMAIL = "kkamei@nyu.edu"` in secrets. When `PORTAL_DEV_EMAIL` is set, the app treats that email as the signed-in admin.
 
 ## Sleep Mitigation
 

@@ -67,6 +67,13 @@ def test_lab_portal_auth_configured_is_false_without_auth_secrets(monkeypatch):
     assert module.auth_configured() is False
 
 
+def test_lab_portal_admin_passcode_configured(monkeypatch):
+    module = importlib.import_module("lab_portal.app")
+    monkeypatch.setattr(module.st, "secrets", {"PORTAL_ADMIN_PASSCODE": "let-me-in"})
+
+    assert module.admin_passcode_configured() is True
+
+
 def test_authenticated_email_uses_dev_environment(monkeypatch):
     monkeypatch.setenv("PORTAL_DEV_EMAIL", "dev@example.edu")
 

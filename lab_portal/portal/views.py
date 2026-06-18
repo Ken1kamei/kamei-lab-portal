@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import html
+from urllib.parse import quote
 
 from .permissions import is_active
 from .storage import Registry
@@ -60,3 +61,15 @@ def app_card_html(card: dict[str, object]) -> str:
             f"target=\"_blank\" rel=\"noopener noreferrer\">{content}</a>"
         )
     return f"<div class=\"portal-card portal-card-disabled\" aria-disabled=\"true\">{content}</div>"
+
+
+def registry_card_html(*, title: str, description: str, target_view: str) -> str:
+    content = (
+        '<span class="portal-status">Manage</span>'
+        f'<span class="portal-card-title">{html.escape(title)}</span>'
+        f'<span class="portal-card-muted">{html.escape(description)}</span>'
+    )
+    return (
+        f'<a class="portal-card portal-card-link" href="?view={quote(target_view)}" '
+        f'target="_self" rel="noopener noreferrer">{content}</a>'
+    )
