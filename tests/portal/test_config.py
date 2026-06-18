@@ -1,6 +1,12 @@
 from pathlib import Path
 
-from lab_portal.portal.config import PortalSettings, open_spreadsheet_by_key_with_retry, registry_store_from_settings, settings_from_mapping
+from lab_portal.portal.config import (
+    DEFAULT_REGISTRY_SPREADSHEET_ID,
+    PortalSettings,
+    open_spreadsheet_by_key_with_retry,
+    registry_store_from_settings,
+    settings_from_mapping,
+)
 from lab_portal.portal.storage import CsvRegistryStore, GoogleSheetRegistryStore
 
 
@@ -42,6 +48,17 @@ def test_settings_from_mapping_defaults_missing_values():
     settings = settings_from_mapping({})
 
     assert settings == PortalSettings()
+
+
+def test_settings_from_mapping_defaults_sheet_ids_when_service_account_exists():
+    settings = settings_from_mapping(
+        {
+            "gcp_service_account": {"client_email": "service@example.iam.gserviceaccount.com"},
+        }
+    )
+
+    assert settings.registry_spreadsheet_id == DEFAULT_REGISTRY_SPREADSHEET_ID
+    assert settings.progress_spreadsheet_id == DEFAULT_REGISTRY_SPREADSHEET_ID
 
 
 def test_registry_store_uses_csv_when_sheet_settings_are_missing():

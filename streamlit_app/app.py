@@ -119,6 +119,12 @@ def clear_shared_data_cache() -> None:
         pass
 
 
+def shared_data_source_labels(settings: PortalSettings) -> tuple[str, str]:
+    registry_source = "Google Sheet" if settings.registry_spreadsheet_id and settings.service_account_info else "Sample CSV"
+    progress_source = "Google Sheet" if settings.progress_spreadsheet_id and settings.service_account_info else "Sample CSV"
+    return registry_source, progress_source
+
+
 def _gspread_service_account_from_dict(service_account_info):
     import gspread
 
@@ -156,7 +162,8 @@ def main() -> None:
     view_from_query = selected_view_from_query(VIEWS)
     with st.sidebar:
         st.html(sidebar_brand_html("Kamei Lab", "Progress Tracker", "Shared research portal"))
-        portal_url = get_portal_settings().portal_app_url or DEFAULT_PORTAL_URL
+        portal_settings = get_portal_settings()
+        portal_url = portal_settings.portal_app_url or DEFAULT_PORTAL_URL
         st.link_button("Back to Kamei Lab Portal", portal_url, use_container_width=True)
         selected_view = st.radio("View", VIEWS, index=VIEWS.index(view_from_query))
         if st.query_params.get("view") != selected_view:
@@ -173,6 +180,11 @@ def main() -> None:
         }
         selected_member_id = st.selectbox("Member", list(member_labels), format_func=lambda value: member_labels[value])
         st.caption(f"Showing: `{selected_team}`")
+        registry_source, progress_source = shared_data_source_labels(portal_settings)
+        st.caption(f"Registry: `{registry_source}`")
+        st.caption(f"Progress: `{progress_source}`")
+        if registry_source != "Google Sheet":
+            st.warning("This app is using the sample member registry. Portal registrations will not appear here.")
         st.caption("Members registered in Kamei Lab Portal appear here after refresh.")
         if st.button("Refresh shared data", use_container_width=True):
             clear_shared_data_cache()

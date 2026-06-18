@@ -53,6 +53,18 @@ def test_streamlit_app_uses_google_sheet_progress_store_with_progress_secret(mon
     assert fake_client.opened_key == "progress-sheet-123"
 
 
+def test_streamlit_app_reports_shared_data_sources():
+    module = importlib.import_module("streamlit_app.app")
+    settings = module.PortalSettings(
+        registry_spreadsheet_id="registry-sheet-123",
+        progress_spreadsheet_id="progress-sheet-456",
+        service_account_info={"client_email": "service@example.iam.gserviceaccount.com"},
+    )
+
+    assert module.shared_data_source_labels(settings) == ("Google Sheet", "Google Sheet")
+    assert module.shared_data_source_labels(module.PortalSettings()) == ("Sample CSV", "Sample CSV")
+
+
 def test_streamlit_app_script_path_loads_without_running_main():
     result = runpy.run_path("streamlit_app/app.py", run_name="__streamlit_test__")
     assert "main" in result

@@ -8,6 +8,10 @@ from typing import Any, Callable, Mapping
 from .storage import CsvRegistryStore, GoogleSheetRegistryStore, RegistryStore
 
 
+DEFAULT_REGISTRY_SPREADSHEET_ID = "1gZU_0tG10O2JuliAq6Hdy3GONVCSBAAuiQAKXNug2Lk"
+DEFAULT_PROGRESS_SPREADSHEET_ID = DEFAULT_REGISTRY_SPREADSHEET_ID
+
+
 @dataclass(frozen=True)
 class PortalSettings:
     registry_spreadsheet_id: str = ""
@@ -18,9 +22,16 @@ class PortalSettings:
 
 def settings_from_mapping(values: Mapping[str, Any]) -> PortalSettings:
     service_account_info = values.get("gcp_service_account", {})
+    has_service_account = bool(service_account_info)
+    registry_spreadsheet_id = str(values.get("REGISTRY_SPREADSHEET_ID", "")).strip()
+    if has_service_account and not registry_spreadsheet_id:
+        registry_spreadsheet_id = DEFAULT_REGISTRY_SPREADSHEET_ID
+    progress_spreadsheet_id = str(values.get("PROGRESS_SPREADSHEET_ID", "")).strip()
+    if has_service_account and not progress_spreadsheet_id:
+        progress_spreadsheet_id = registry_spreadsheet_id or DEFAULT_PROGRESS_SPREADSHEET_ID
     return PortalSettings(
-        registry_spreadsheet_id=str(values.get("REGISTRY_SPREADSHEET_ID", "")).strip(),
-        progress_spreadsheet_id=str(values.get("PROGRESS_SPREADSHEET_ID", "")).strip(),
+        registry_spreadsheet_id=registry_spreadsheet_id,
+        progress_spreadsheet_id=progress_spreadsheet_id,
         portal_app_url=str(values.get("PORTAL_APP_URL", "https://kamei-lab-tools.streamlit.app/")).strip(),
         service_account_info=dict(service_account_info) if service_account_info else {},
     )
