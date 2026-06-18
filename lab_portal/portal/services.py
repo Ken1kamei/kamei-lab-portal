@@ -218,6 +218,194 @@ def update_member(
     )
 
 
+def set_member_relationships(
+    registry: Registry,
+    *,
+    actor_email: str,
+    member_id: str,
+    team_ids: list[str],
+    team_role: str,
+    app_roles: dict[str, str],
+    start_date: str,
+    end_date: str = "",
+) -> Registry:
+    updated = {table: frame.copy() for table, frame in registry.items()}
+    _validate_active_member(updated, member_id)
+    team_ids = [team_id for team_id in dict.fromkeys(team_ids) if str(team_id).strip()]
+    app_roles = {app_id: role for app_id, role in app_roles.items() if str(app_id).strip()}
+
+    for team_id in team_ids:
+        _validate_active_team(updated, team_id)
+    for app_id, app_role in app_roles.items():
+        if app_role:
+            _validate_app_role_input(updated, app_id, app_role, "")
+
+    updated = _set_member_team_rows(
+        updated,
+        actor_email=actor_email,
+        member_id=member_id,
+        team_ids=team_ids,
+        team_role=team_role,
+        start_date=start_date,
+        end_date=end_date,
+    )
+    updated = _set_member_app_role_rows(
+        updated,
+        actor_email=actor_email,
+        member_id=member_id,
+        app_roles=app_roles,
+        start_date=start_date,
+        end_date=end_date,
+    )
+    return updated
+
+
+def _validate_active_member(registry: Registry, member_id: str) -> None:
+    members = registry["Members"]
+    member_mask = members["member_id"] == member_id
+    if not member_mask.any():
+        raise ValueError(f"Unknown member_id {member_id}")
+    if member_mask.sum() > 1:
+        raise ValueError(f"Duplicate member_id {member_id}")
+    if not is_active(members.loc[member_mask].iloc[0]["active"]):
+        raise ValueError(f"Inactive member_id {member_id}")
+
+
+def _validate_active_team(registry: Registry, team_id: str) -> None:
+    teams = registry["Teams"]
+    team_mask = teams["team_id"] == team_id
+    if not team_mask.any():
+        raise ValueError(f"Unknown team_id {team_id}")
+    if team_mask.sum() > 1:
+        raise ValueError(f"Duplicate team_id {team_id}")
+    if not is_active(teams.loc[team_mask].iloc[0]["active"]):
+        raise ValueError(f"Inactive team_id {team_id}")
+
+
+def _validate_app_role_input(registry: Registry, app_id: str, app_role: str, scope_team_id: str) -> None:
+    app_ids = {value for value in registry["Apps"]["app_id"] if str(value).strip()}
+    team_ids = {value for value in registry["Teams"]["team_id"] if str(value).strip()}
+    if app_id not in app_ids:
+        raise ValueError(f"Unknown app_id {app_id}")
+    if scope_team_id and scope_team_id not in team_ids:
+        raise ValueError(f"Unknown scope_team_id {scope_team_id}")
+    if app_role not in APP_ROLES:
+        raise ValueError(f"Invalid app_role {app_role}")
+
+
+def _set_member_team_rows(
+    registry: Registry,
+    *,
+    actor_email: str,
+    member_id: str,
+    team_ids: list[str],
+    team_role: str,
+    start_date: str,
+    end_date: str,
+) -> Registry:
+    updated = {table: frame.copy() for table, frame in registry.items()}
+    desired_team_ids = set(team_ids)
+    member_teams = updated["Member_Teams"].copy()
+    active_mask = (member_teams["member_id"] == member_id) & member_teams["active"].map(is_active)
+    for index, row in member_teams[active_mask].iterrows():
+        if row["team_id"] in desired_team_ids:
+            continue
+        before = row.to_dict()
+        member_teams.loc[index, "active"] = "FALSE"
+        member_teams.loc[index, "end_date"] = end_date or start_date
+        after = member_teams.loc[index].to_dict()
+        updated["Member_Teams"] = member_teams
+        updated = _append_audit(
+            updated,
+            actor_email=actor_email,
+            action="member_team.deactivate",
+            target_type="Member_Teams",
+            target_id=after["member_team_id"],
+            before=before,
+            after=after,
+        )
+        member_teams = updated["Member_Teams"].copy()
+
+    active_member_team_ids = set(
+        member_teams[
+            (member_teams["member_id"] == member_id)
+            & member_teams["active"].map(is_active)
+        ]["team_id"].astype(str)
+    )
+    for team_id in team_ids:
+        if team_id not in active_member_team_ids:
+            updated = assign_member_to_team(
+                updated,
+                actor_email=actor_email,
+                member_id=member_id,
+                team_id=team_id,
+                team_role=team_role,
+                start_date=start_date,
+            )
+    return updated
+
+
+def _set_member_app_role_rows(
+    registry: Registry,
+    *,
+    actor_email: str,
+    member_id: str,
+    app_roles: dict[str, str],
+    start_date: str,
+    end_date: str,
+) -> Registry:
+    updated = {table: frame.copy() for table, frame in registry.items()}
+    app_role_rows = updated["App_Roles"].copy()
+    managed_app_ids = set(app_roles)
+    active_mask = (app_role_rows["member_id"] == member_id) & app_role_rows["active"].map(is_active)
+    for index, row in app_role_rows[active_mask].iterrows():
+        app_id = str(row["app_id"])
+        if app_id not in managed_app_ids:
+            continue
+        desired_role = app_roles.get(app_id, "")
+        keep_row = desired_role and row["app_role"] == desired_role and str(row.get("scope_team_id", "")) == ""
+        if keep_row:
+            continue
+        before = row.to_dict()
+        app_role_rows.loc[index, "active"] = "FALSE"
+        app_role_rows.loc[index, "end_date"] = end_date or start_date
+        after = app_role_rows.loc[index].to_dict()
+        updated["App_Roles"] = app_role_rows
+        updated = _append_audit(
+            updated,
+            actor_email=actor_email,
+            action="app_role.deactivate",
+            target_type="App_Roles",
+            target_id=after["app_role_id"],
+            before=before,
+            after=after,
+        )
+        app_role_rows = updated["App_Roles"].copy()
+
+    active_roles = app_role_rows[(app_role_rows["member_id"] == member_id) & app_role_rows["active"].map(is_active)]
+    for app_id, app_role in app_roles.items():
+        if not app_role:
+            continue
+        matching = active_roles[
+            (active_roles["app_id"] == app_id)
+            & (active_roles["app_role"] == app_role)
+            & (active_roles["scope_team_id"].astype(str) == "")
+        ]
+        if matching.empty:
+            updated = grant_app_role(
+                updated,
+                actor_email=actor_email,
+                member_id=member_id,
+                app_id=app_id,
+                app_role=app_role,
+                scope_team_id="",
+                start_date=start_date,
+            )
+            app_role_rows = updated["App_Roles"].copy()
+            active_roles = app_role_rows[(app_role_rows["member_id"] == member_id) & app_role_rows["active"].map(is_active)]
+    return updated
+
+
 def assign_member_to_team(
     registry: Registry,
     *,

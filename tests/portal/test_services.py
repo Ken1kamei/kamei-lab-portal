@@ -5,7 +5,15 @@ import json
 import pandas as pd
 import pytest
 
-from lab_portal.portal.services import add_member, add_team, deactivate_member, grant_app_role, update_app_url, update_member
+from lab_portal.portal.services import (
+    add_member,
+    add_team,
+    deactivate_member,
+    grant_app_role,
+    set_member_relationships,
+    update_app_url,
+    update_member,
+)
 from lab_portal.portal.storage import CsvRegistryStore
 
 
@@ -64,6 +72,42 @@ def test_add_member_can_assign_teams_and_app_access_for_shared_registry():
     assert set(app_role_rows["app_id"]) == {"budget", "notebooks_protocols", "project_tracker"}
     assert set(app_role_rows["app_role"]) == {"viewer"}
     assert "member_team.assign" in set(updated["Audit_Log"]["action"])
+    assert "app_role.grant" in set(updated["Audit_Log"]["action"])
+
+
+def test_set_member_relationships_updates_team_and_per_app_access():
+    registry = CsvRegistryStore(Path("lab_portal/data/sample")).load()
+
+    updated = set_member_relationships(
+        registry,
+        actor_email="kkamei@nyu.edu",
+        member_id="M003",
+        team_ids=["T001"],
+        team_role="lead",
+        app_roles={
+            "budget": "owner",
+            "notebooks_protocols": "editor",
+            "project_tracker": "",
+        },
+        start_date="2026-06-19",
+    )
+
+    member_team_rows = updated["Member_Teams"][
+        (updated["Member_Teams"]["member_id"] == "M003")
+        & updated["Member_Teams"]["active"].map(lambda value: str(value).upper() == "TRUE")
+    ]
+    app_role_rows = updated["App_Roles"][
+        (updated["App_Roles"]["member_id"] == "M003")
+        & updated["App_Roles"]["active"].map(lambda value: str(value).upper() == "TRUE")
+    ]
+
+    assert set(member_team_rows["team_id"]) == {"T001"}
+    assert set(zip(app_role_rows["app_id"], app_role_rows["app_role"])) == {
+        ("budget", "owner"),
+        ("notebooks_protocols", "editor"),
+    }
+    assert "member_team.deactivate" in set(updated["Audit_Log"]["action"])
+    assert "app_role.deactivate" in set(updated["Audit_Log"]["action"])
     assert "app_role.grant" in set(updated["Audit_Log"]["action"])
 
 

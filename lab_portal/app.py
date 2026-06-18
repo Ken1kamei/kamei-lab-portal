@@ -29,7 +29,15 @@ from lab_portal.portal.config import (
 )
 from lab_portal.portal.constants import APP_ROLES, PORTAL_ROLES
 from lab_portal.portal.permissions import can_admin_portal, resolve_member_by_email
-from lab_portal.portal.services import add_member, add_team, deactivate_member, grant_app_role, update_app_url, update_member
+from lab_portal.portal.services import (
+    add_member,
+    add_team,
+    deactivate_member,
+    grant_app_role,
+    set_member_relationships,
+    update_app_url,
+    update_member,
+)
 from lab_portal.portal.storage import GoogleSheetRegistryStore
 from lab_portal.portal.theme import apply_theme
 from lab_portal.portal.views import app_card_html, app_cards, dashboard_header_html
@@ -37,6 +45,7 @@ from lab_portal.portal.views import app_card_html, app_cards, dashboard_header_h
 
 APP_TITLE = "Kamei Lab Portal"
 VIEWS = ["Home", "Members", "Teams", "App Access", "Audit"]
+NO_APP_ACCESS = "No access"
 SAMPLE_REGISTRY_DIR = Path(__file__).parent / "data" / "sample"
 
 
@@ -153,13 +162,8 @@ def render_member_admin(registry, store, actor_email: str) -> None:
             format_func=lambda value: _team_label(registry, value),
         )
         team_role = st.selectbox("Team role", ["member", "lead", "manager", "viewer"], index=0)
-        selected_app_ids = st.multiselect(
-            "App access",
-            app_options,
-            default=app_options,
-            format_func=lambda value: _app_label(registry, value),
-        )
-        app_role = st.selectbox("App role", APP_ROLES, index=APP_ROLES.index("viewer"))
+        st.caption("App permissions")
+        add_app_roles = _app_role_inputs(registry, app_options, {}, key_prefix="add")
         start_date = st.date_input("Start date", value=date.today())
         notes = st.text_area("Notes")
         submitted = st.form_submit_button("Add member")
@@ -177,10 +181,16 @@ def render_member_admin(registry, store, actor_email: str) -> None:
                 start_date=start_date.isoformat(),
                 password=password,
                 notes=notes,
+            )
+            member_id = updated["Members"].set_index("email").loc[email.strip().lower(), "member_id"]
+            updated = set_member_relationships(
+                updated,
+                actor_email=actor_email,
+                member_id=member_id,
                 team_ids=selected_team_ids,
                 team_role=team_role,
-                app_ids=selected_app_ids,
-                app_role=app_role,
+                app_roles=add_app_roles,
+                start_date=start_date.isoformat(),
             )
             save_registry(updated, store)
             st.success("Member added.")
@@ -232,6 +242,27 @@ def render_member_admin(registry, store, actor_email: str) -> None:
                 value=_text_value(current_member.get("end_date", "")),
                 key="edit-member-end-date",
             )
+            current_team_ids = _active_member_team_ids(registry, edit_member_id)
+            edit_team_ids = st.multiselect(
+                "Teams",
+                team_options,
+                default=[team_id for team_id in current_team_ids if team_id in team_options],
+                format_func=lambda value: _team_label(registry, value),
+                key="edit-member-teams",
+            )
+            edit_team_role = st.selectbox(
+                "Team role for newly assigned teams",
+                ["member", "lead", "manager", "viewer"],
+                index=0,
+                key="edit-member-team-role",
+            )
+            st.caption("App permissions")
+            edit_app_roles = _app_role_inputs(
+                registry,
+                app_options,
+                _active_app_role_by_app(registry, edit_member_id),
+                key_prefix="edit",
+            )
             edit_password = st.text_input("New password", type="password", key="edit-member-password")
             edit_confirm_password = st.text_input(
                 "Confirm new password",
@@ -264,6 +295,16 @@ def render_member_admin(registry, store, actor_email: str) -> None:
                     notes=edit_notes,
                     password=edit_password,
                     password_must_change=edit_password_must_change,
+                )
+                updated = set_member_relationships(
+                    updated,
+                    actor_email=actor_email,
+                    member_id=edit_member_id,
+                    team_ids=edit_team_ids,
+                    team_role=edit_team_role,
+                    app_roles=edit_app_roles,
+                    start_date=edit_start_date or date.today().isoformat(),
+                    end_date=edit_end_date,
                 )
                 save_registry(updated, store)
                 st.success("Member updated.")
@@ -375,6 +416,46 @@ def _team_label(registry, team_id: str) -> str:
 def _app_label(registry, app_id: str) -> str:
     apps = registry["Apps"].set_index("app_id")
     return str(apps.loc[app_id, "app_name"]) if app_id in apps.index else app_id
+
+
+def _active_member_team_ids(registry, member_id: str) -> list[str]:
+    member_teams = registry["Member_Teams"].fillna("")
+    rows = member_teams[
+        (member_teams["member_id"].astype(str) == member_id)
+        & (member_teams["active"].astype(str).str.upper() == "TRUE")
+    ]
+    return rows["team_id"].astype(str).tolist()
+
+
+def _active_app_role_by_app(registry, member_id: str) -> dict[str, str]:
+    app_roles = registry["App_Roles"].fillna("")
+    rows = app_roles[
+        (app_roles["member_id"].astype(str) == member_id)
+        & (app_roles["active"].astype(str).str.upper() == "TRUE")
+        & (app_roles["scope_team_id"].astype(str) == "")
+    ]
+    roles: dict[str, str] = {}
+    for _, row in rows.iterrows():
+        app_id = str(row.get("app_id", ""))
+        role = str(row.get("app_role", ""))
+        if app_id and role:
+            roles[app_id] = role
+    return roles
+
+
+def _app_role_inputs(registry, app_options: list[str], current_roles: dict[str, str], *, key_prefix: str) -> dict[str, str]:
+    role_choices = [NO_APP_ACCESS] + APP_ROLES
+    selected_roles: dict[str, str] = {}
+    for app_id in app_options:
+        current_role = current_roles.get(app_id, "viewer")
+        selected = st.selectbox(
+            _app_label(registry, app_id),
+            role_choices,
+            index=role_choices.index(current_role) if current_role in role_choices else 0,
+            key=f"{key_prefix}-app-role-{app_id}",
+        )
+        selected_roles[app_id] = "" if selected == NO_APP_ACCESS else selected
+    return selected_roles
 
 
 def _text_value(value) -> str:
