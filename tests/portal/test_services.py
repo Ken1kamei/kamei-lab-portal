@@ -5,7 +5,7 @@ import json
 import pandas as pd
 import pytest
 
-from lab_portal.portal.services import add_member, add_team, deactivate_member, grant_app_role, update_app_url
+from lab_portal.portal.services import add_member, add_team, deactivate_member, grant_app_role, update_app_url, update_member
 from lab_portal.portal.storage import CsvRegistryStore
 
 
@@ -20,6 +20,7 @@ def test_add_member_appends_member_and_audit_record():
         display_name="New Member",
         global_role="member",
         start_date="2026-06-13",
+        password="initial-pass-123",
         notes="Joined portal pilot",
     )
 
@@ -27,7 +28,12 @@ def test_add_member_appends_member_and_audit_record():
     assert updated["Audit_Log"].iloc[-1]["action"] == "member.add"
     assert updated["Audit_Log"].iloc[-1]["actor_email"] == "kkamei@nyu.edu"
     assert "new.member@example.edu" not in set(registry["Members"]["email"])
+    member = updated["Members"].set_index("email").loc["new.member@example.edu"]
+    assert member["password_hash"].startswith("pbkdf2_sha256$")
+    assert member["password_hash"] != "initial-pass-123"
+    assert member["password_must_change"] == "TRUE"
     assert json.loads(updated["Audit_Log"].iloc[-1]["after"])["email"] == "new.member@example.edu"
+    assert json.loads(updated["Audit_Log"].iloc[-1]["after"])["password_hash"] == "<redacted>"
 
 
 def test_add_member_can_assign_teams_and_app_access_for_shared_registry():
@@ -41,6 +47,7 @@ def test_add_member_can_assign_teams_and_app_access_for_shared_registry():
         display_name="Shared Member",
         global_role="member",
         start_date="2026-06-18",
+        password="initial-pass-123",
         notes="Visible across apps",
         team_ids=["T001", "T002"],
         team_role="member",
@@ -72,6 +79,7 @@ def test_add_member_reports_invalid_global_role():
             display_name="New Member",
             global_role="invalid_role",
             start_date="2026-06-13",
+            password="initial-pass-123",
             notes="Joined portal pilot",
         )
 
@@ -88,8 +96,56 @@ def test_add_member_reports_duplicate_active_email():
             display_name="Duplicate Member",
             global_role="member",
             start_date="2026-06-13",
+            password="initial-pass-123",
             notes="Duplicate",
         )
+
+
+def test_add_member_requires_initial_password():
+    registry = CsvRegistryStore(Path("lab_portal/data/sample")).load()
+
+    with pytest.raises(ValueError, match="password must be at least 8 characters"):
+        add_member(
+            registry,
+            actor_email="kkamei@nyu.edu",
+            email="new.member@example.edu",
+            name="New Member",
+            display_name="New Member",
+            global_role="member",
+            start_date="2026-06-13",
+            password="short",
+            notes="Joined portal pilot",
+        )
+
+
+def test_update_member_changes_profile_and_can_reset_password():
+    registry = CsvRegistryStore(Path("lab_portal/data/sample")).load()
+
+    updated = update_member(
+        registry,
+        actor_email="kkamei@nyu.edu",
+        member_id="M003",
+        email="updated.member@example.edu",
+        name="Updated Member",
+        display_name="Updated",
+        global_role="lead",
+        active="TRUE",
+        start_date="2026-02-01",
+        end_date="",
+        notes="Updated profile",
+        password="updated-pass-123",
+        password_must_change="FALSE",
+    )
+
+    member = updated["Members"].set_index("member_id").loc["M003"]
+    assert member["email"] == "updated.member@example.edu"
+    assert member["display_name"] == "Updated"
+    assert member["global_role"] == "lead"
+    assert member["password_hash"].startswith("pbkdf2_sha256$")
+    assert member["password_hash"] != "updated-pass-123"
+    assert member["password_must_change"] == "TRUE"
+    assert updated["Audit_Log"].iloc[-1]["action"] == "member.update"
+    assert json.loads(updated["Audit_Log"].iloc[-1]["after"])["password_hash"] == "<redacted>"
 
 
 def test_deactivate_member_keeps_row_and_appends_audit_record():

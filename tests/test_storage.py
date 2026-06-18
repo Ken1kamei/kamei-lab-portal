@@ -88,6 +88,7 @@ def test_shared_registry_store_reflects_new_portal_members():
         display_name="New Member",
         global_role="member",
         start_date="2026-06-13",
+        password="initial-pass-123",
         notes="Added through Portal",
     )
 

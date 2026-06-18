@@ -22,6 +22,9 @@ def test_required_columns_include_all_registry_fields():
         "active",
         "start_date",
         "end_date",
+        "password_hash",
+        "password_set_at",
+        "password_must_change",
         "notes",
     ]
     assert REQUIRED_COLUMNS["Teams"] == ["team_id", "team_name", "description", "active"]

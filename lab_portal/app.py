@@ -24,7 +24,7 @@ from lab_portal.portal.config import (
 )
 from lab_portal.portal.constants import APP_ROLES, PORTAL_ROLES
 from lab_portal.portal.permissions import can_admin_portal, resolve_member_by_email
-from lab_portal.portal.services import add_member, add_team, deactivate_member, grant_app_role, update_app_url
+from lab_portal.portal.services import add_member, add_team, deactivate_member, grant_app_role, update_app_url, update_member
 from lab_portal.portal.storage import GoogleSheetRegistryStore
 from lab_portal.portal.theme import apply_theme
 from lab_portal.portal.views import app_card_html, app_cards, dashboard_header_html
@@ -118,6 +118,11 @@ def render_table_page(title: str, subtitle: str, frame) -> None:
     st.dataframe(frame, width="stretch", hide_index=True)
 
 
+def member_display_frame(registry) -> pd.DataFrame:
+    hidden_columns = {"password_hash"}
+    return registry["Members"].drop(columns=[column for column in hidden_columns if column in registry["Members"].columns])
+
+
 def render_member_admin(registry, store, actor_email: str) -> None:
     st.subheader("Member administration")
     st.caption("Use this panel to register lab members in the shared registry. Changes flow into the other apps after refresh.")
@@ -132,6 +137,8 @@ def render_member_admin(registry, store, actor_email: str) -> None:
         name = st.text_input("Full name")
         display_name = st.text_input("Display name")
         global_role = st.selectbox("Global role", PORTAL_ROLES, index=PORTAL_ROLES.index("member"))
+        password = st.text_input("Initial password", type="password")
+        confirm_password = st.text_input("Confirm initial password", type="password")
         selected_team_ids = st.multiselect(
             "Teams",
             team_options,
@@ -151,6 +158,8 @@ def render_member_admin(registry, store, actor_email: str) -> None:
         submitted = st.form_submit_button("Add member")
     if submitted:
         try:
+            if password != confirm_password:
+                raise ValueError("Initial password and confirmation do not match.")
             updated = add_member(
                 registry,
                 actor_email=actor_email,
@@ -159,6 +168,7 @@ def render_member_admin(registry, store, actor_email: str) -> None:
                 display_name=display_name or name,
                 global_role=global_role,
                 start_date=start_date.isoformat(),
+                password=password,
                 notes=notes,
                 team_ids=selected_team_ids,
                 team_role=team_role,
@@ -173,6 +183,87 @@ def render_member_admin(registry, store, actor_email: str) -> None:
 
     active_members = registry["Members"][registry["Members"]["active"].astype(str).str.upper() == "TRUE"]
     member_options = active_members["member_id"].astype(str).tolist()
+    all_member_options = registry["Members"]["member_id"].astype(str).tolist()
+    if all_member_options:
+        with st.form("portal-edit-member"):
+            st.write("Edit member")
+            edit_member_id = st.selectbox(
+                "Member to edit",
+                all_member_options,
+                format_func=lambda value: _member_label(registry, value),
+                key="edit-member-id",
+            )
+            current_member = registry["Members"].set_index("member_id").loc[edit_member_id].fillna("")
+            edit_email = st.text_input("Email", value=_text_value(current_member.get("email", "")), key="edit-member-email")
+            edit_name = st.text_input("Full name", value=_text_value(current_member.get("name", "")), key="edit-member-name")
+            edit_display_name = st.text_input(
+                "Display name",
+                value=_text_value(current_member.get("display_name", "")),
+                key="edit-member-display-name",
+            )
+            edit_global_role = st.selectbox(
+                "Global role",
+                PORTAL_ROLES,
+                index=PORTAL_ROLES.index(_text_value(current_member.get("global_role", "member")))
+                if _text_value(current_member.get("global_role", "member")) in PORTAL_ROLES
+                else PORTAL_ROLES.index("member"),
+                key="edit-member-global-role",
+            )
+            edit_active = st.selectbox(
+                "Active",
+                ["TRUE", "FALSE"],
+                index=0 if _text_value(current_member.get("active", "")).upper() == "TRUE" else 1,
+                key="edit-member-active",
+            )
+            edit_start_date = st.text_input(
+                "Start date",
+                value=_text_value(current_member.get("start_date", "")),
+                key="edit-member-start-date",
+            )
+            edit_end_date = st.text_input(
+                "End date",
+                value=_text_value(current_member.get("end_date", "")),
+                key="edit-member-end-date",
+            )
+            edit_password = st.text_input("New password", type="password", key="edit-member-password")
+            edit_confirm_password = st.text_input(
+                "Confirm new password",
+                type="password",
+                key="edit-member-confirm-password",
+            )
+            edit_password_must_change = st.selectbox(
+                "Require password change",
+                ["TRUE", "FALSE"],
+                index=0 if _text_value(current_member.get("password_must_change", "TRUE")).upper() != "FALSE" else 1,
+                key="edit-member-password-must-change",
+            )
+            edit_notes = st.text_area("Notes", value=_text_value(current_member.get("notes", "")), key="edit-member-notes")
+            edit_submitted = st.form_submit_button("Save member")
+        if edit_submitted:
+            try:
+                if edit_password != edit_confirm_password:
+                    raise ValueError("New password and confirmation do not match.")
+                updated = update_member(
+                    registry,
+                    actor_email=actor_email,
+                    member_id=edit_member_id,
+                    email=edit_email,
+                    name=edit_name,
+                    display_name=edit_display_name or edit_name,
+                    global_role=edit_global_role,
+                    active=edit_active,
+                    start_date=edit_start_date,
+                    end_date=edit_end_date,
+                    notes=edit_notes,
+                    password=edit_password,
+                    password_must_change=edit_password_must_change,
+                )
+                save_registry(updated, store)
+                st.success("Member updated.")
+                st.rerun()
+            except ValueError as error:
+                st.error(str(error))
+
     if member_options:
         with st.form("portal-deactivate-member"):
             st.write("Deactivate member")
@@ -403,7 +494,7 @@ def main() -> None:
     if view == "Home":
         render_home(registry)
     elif view == "Members":
-        render_table_page("Members", "Central lab member registry", registry["Members"])
+        render_table_page("Members", "Central lab member registry", member_display_frame(registry))
         if is_admin:
             render_member_admin(registry, store, email)
         else:

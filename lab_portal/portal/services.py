@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import base64
+import hashlib
 import json
+import secrets
 from datetime import UTC, datetime
 from urllib.parse import urlparse
 
@@ -26,6 +29,20 @@ def _now_iso() -> str:
     return datetime.now(UTC).replace(microsecond=0).isoformat()
 
 
+def _password_hash(password: str) -> str:
+    normalized_password = str(password)
+    if len(normalized_password) < 8:
+        raise ValueError("password must be at least 8 characters")
+    iterations = 200_000
+    salt = secrets.token_bytes(16)
+    digest = hashlib.pbkdf2_hmac("sha256", normalized_password.encode("utf-8"), salt, iterations)
+    return "pbkdf2_sha256${}${}${}".format(
+        iterations,
+        base64.urlsafe_b64encode(salt).decode("ascii").rstrip("="),
+        base64.urlsafe_b64encode(digest).decode("ascii").rstrip("="),
+    )
+
+
 def _append_audit(
     registry: Registry,
     *,
@@ -45,11 +62,19 @@ def _append_audit(
         "action": action,
         "target_type": target_type,
         "target_id": target_id,
-        "before": json.dumps(before or {}, sort_keys=True),
-        "after": json.dumps(after or {}, sort_keys=True),
+        "before": json.dumps(_redact_sensitive_fields(before), sort_keys=True),
+        "after": json.dumps(_redact_sensitive_fields(after), sort_keys=True),
     }
     updated["Audit_Log"] = pd.concat([audit, pd.DataFrame([row])], ignore_index=True)
     return updated
+
+
+def _redact_sensitive_fields(record: dict[str, str] | None) -> dict[str, str]:
+    redacted = dict(record or {})
+    for key in ("password_hash",):
+        if key in redacted:
+            redacted[key] = "<redacted>"
+    return redacted
 
 
 def add_member(
@@ -61,6 +86,7 @@ def add_member(
     display_name: str,
     global_role: str,
     start_date: str,
+    password: str,
     notes: str,
     team_ids: list[str] | None = None,
     team_role: str = "member",
@@ -72,18 +98,23 @@ def add_member(
     if global_role not in PORTAL_ROLES:
         raise ValueError(f"Invalid global_role {global_role}")
     normalized_email = email.strip().lower()
+    if not normalized_email:
+        raise ValueError("email is required")
     active_emails = members[members["active"].map(is_active)]["email"].astype(str).str.strip().str.lower()
     if normalized_email in set(active_emails):
         raise ValueError(f"Duplicate active member email {normalized_email}")
     row = {
         "member_id": _next_id(members, "member_id", "M"),
-        "email": email,
-        "name": name,
-        "display_name": display_name,
+        "email": normalized_email,
+        "name": name.strip(),
+        "display_name": display_name.strip() or name.strip(),
         "global_role": global_role,
         "active": "TRUE",
         "start_date": start_date,
         "end_date": "",
+        "password_hash": _password_hash(password),
+        "password_set_at": _now_iso(),
+        "password_must_change": "TRUE",
         "notes": notes,
     }
     updated["Members"] = pd.concat([members, pd.DataFrame([row])], ignore_index=True)
@@ -116,6 +147,75 @@ def add_member(
             start_date=start_date,
         )
     return updated
+
+
+def update_member(
+    registry: Registry,
+    *,
+    actor_email: str,
+    member_id: str,
+    email: str,
+    name: str,
+    display_name: str,
+    global_role: str,
+    active: str,
+    start_date: str,
+    end_date: str,
+    notes: str,
+    password: str = "",
+    password_must_change: str = "TRUE",
+) -> Registry:
+    updated = {table: frame.copy() for table, frame in registry.items()}
+    members = updated["Members"].copy()
+    mask = members["member_id"] == member_id
+    if not mask.any():
+        raise ValueError(f"Unknown member_id {member_id}")
+    if mask.sum() > 1:
+        raise ValueError(f"Duplicate member_id {member_id}")
+    if global_role not in PORTAL_ROLES:
+        raise ValueError(f"Invalid global_role {global_role}")
+    normalized_active = active.strip().upper()
+    if normalized_active not in {"TRUE", "FALSE"}:
+        raise ValueError(f"Invalid active {active}")
+    normalized_password_must_change = password_must_change.strip().upper()
+    if normalized_password_must_change not in {"TRUE", "FALSE"}:
+        raise ValueError(f"Invalid password_must_change {password_must_change}")
+    normalized_email = email.strip().lower()
+    if not normalized_email:
+        raise ValueError("email is required")
+    duplicate_mask = (
+        (members["member_id"] != member_id)
+        & members["active"].map(is_active)
+        & (members["email"].astype(str).str.strip().str.lower() == normalized_email)
+    )
+    if duplicate_mask.any():
+        raise ValueError(f"Duplicate active member email {normalized_email}")
+
+    before = members.loc[mask].iloc[0].to_dict()
+    members.loc[mask, "email"] = normalized_email
+    members.loc[mask, "name"] = name.strip()
+    members.loc[mask, "display_name"] = display_name.strip() or name.strip()
+    members.loc[mask, "global_role"] = global_role
+    members.loc[mask, "active"] = normalized_active
+    members.loc[mask, "start_date"] = start_date
+    members.loc[mask, "end_date"] = end_date if normalized_active == "FALSE" else ""
+    members.loc[mask, "password_must_change"] = normalized_password_must_change
+    members.loc[mask, "notes"] = notes
+    if password:
+        members.loc[mask, "password_hash"] = _password_hash(password)
+        members.loc[mask, "password_set_at"] = _now_iso()
+        members.loc[mask, "password_must_change"] = "TRUE"
+    after = members.loc[mask].iloc[0].to_dict()
+    updated["Members"] = members
+    return _append_audit(
+        updated,
+        actor_email=actor_email,
+        action="member.update",
+        target_type="Members",
+        target_id=member_id,
+        before=before,
+        after=after,
+    )
 
 
 def assign_member_to_team(
