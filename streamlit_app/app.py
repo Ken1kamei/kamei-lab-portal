@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 import sys
 
@@ -11,7 +12,13 @@ if str(PROJECT_ROOT) not in sys.path:
 import streamlit as st
 from streamlit.errors import StreamlitSecretNotFoundError
 
-from lab_portal.portal.config import PortalSettings, registry_store_from_settings, settings_from_mapping
+from lab_portal.portal.config import (
+    PortalSettings,
+    open_spreadsheet_by_key_with_retry,
+    registry_store_from_settings,
+    settings_from_mapping,
+)
+from lab_portal.portal.storage import GoogleSheetRegistryStore
 from streamlit_app.progress_tracker.storage import CsvLedgerStore, GoogleSheetLedgerStore, SharedRegistryLedgerStore
 from streamlit_app.progress_tracker.summary import filter_ledger_by_team, team_options
 from streamlit_app.progress_tracker.theme import apply_theme, dashboard_header_html, sidebar_brand_html
@@ -37,7 +44,19 @@ DEFAULT_PORTAL_URL = "https://kamei-lab-tools.streamlit.app/"
 
 def get_registry_store():
     settings = get_portal_settings()
+    if settings.registry_spreadsheet_id and settings.service_account_info:
+        spreadsheet = _cached_registry_spreadsheet(
+            settings.registry_spreadsheet_id,
+            json.dumps(settings.service_account_info, sort_keys=True),
+        )
+        return GoogleSheetRegistryStore(spreadsheet)
     return registry_store_from_settings(settings, SAMPLE_REGISTRY_DIR, _gspread_service_account_from_dict)
+
+
+@st.cache_resource(ttl=300, show_spinner=False)
+def _cached_registry_spreadsheet(spreadsheet_id: str, service_account_info_json: str):
+    client = _gspread_service_account_from_dict(json.loads(service_account_info_json))
+    return open_spreadsheet_by_key_with_retry(client, spreadsheet_id)
 
 
 def get_portal_settings():
@@ -54,9 +73,18 @@ def get_ledger_store():
 def get_progress_store():
     settings = get_portal_settings()
     if settings.progress_spreadsheet_id and settings.service_account_info:
-        client = _gspread_service_account_from_dict(settings.service_account_info)
-        return GoogleSheetLedgerStore(client.open_by_key(settings.progress_spreadsheet_id))
+        spreadsheet = _cached_progress_spreadsheet(
+            settings.progress_spreadsheet_id,
+            json.dumps(settings.service_account_info, sort_keys=True),
+        )
+        return GoogleSheetLedgerStore(spreadsheet)
     return CsvLedgerStore(SAMPLE_LEDGER_DIR)
+
+
+@st.cache_resource(ttl=300, show_spinner=False)
+def _cached_progress_spreadsheet(spreadsheet_id: str, service_account_info_json: str):
+    client = _gspread_service_account_from_dict(json.loads(service_account_info_json))
+    return open_spreadsheet_by_key_with_retry(client, spreadsheet_id)
 
 
 def load_ledger(store=None):
@@ -87,8 +115,20 @@ def main() -> None:
     )
     apply_theme()
 
-    ledger_store = get_ledger_store()
-    ledger = load_ledger(ledger_store)
+    try:
+        ledger_store = get_ledger_store()
+        ledger = load_ledger(ledger_store)
+    except Exception as error:
+        st.html(dashboard_header_html(APP_TITLE, "Shared research ledger with data links"))
+        st.error("The shared project tracker data could not be loaded.")
+        st.info(
+            "Please refresh the app. If this repeats, check the Google Sheet sharing and the registry/progress "
+            "spreadsheet IDs in Streamlit Cloud secrets."
+        )
+        with st.expander("Technical detail"):
+            st.code(f"{type(error).__name__}: {error}")
+        st.stop()
+
     view_from_query = selected_view_from_query(VIEWS)
     with st.sidebar:
         st.html(sidebar_brand_html("Kamei Lab", "Progress Tracker", "Shared research portal"))

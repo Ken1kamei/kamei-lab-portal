@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from lab_portal.portal.config import PortalSettings, registry_store_from_settings, settings_from_mapping
+from lab_portal.portal.config import PortalSettings, open_spreadsheet_by_key_with_retry, registry_store_from_settings, settings_from_mapping
 from lab_portal.portal.storage import CsvRegistryStore, GoogleSheetRegistryStore
 
 
@@ -10,6 +10,17 @@ class FakeClient:
 
     def open_by_key(self, key):
         self.opened_key = key
+        return {"spreadsheet_key": key}
+
+
+class FlakyClient:
+    def __init__(self):
+        self.calls = 0
+
+    def open_by_key(self, key):
+        self.calls += 1
+        if self.calls == 1:
+            raise RuntimeError("temporary API failure")
         return {"spreadsheet_key": key}
 
 
@@ -52,3 +63,12 @@ def test_registry_store_uses_google_sheet_when_sheet_settings_exist():
 
     assert isinstance(store, GoogleSheetRegistryStore)
     assert fake_client.opened_key == "sheet-123"
+
+
+def test_open_spreadsheet_by_key_retries_temporary_failures():
+    fake_client = FlakyClient()
+
+    spreadsheet = open_spreadsheet_by_key_with_retry(fake_client, "sheet-123", delay_seconds=0)
+
+    assert spreadsheet == {"spreadsheet_key": "sheet-123"}
+    assert fake_client.calls == 2

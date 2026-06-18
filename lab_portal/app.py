@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from datetime import date
+import json
 from pathlib import Path
 import sys
 
@@ -15,10 +16,16 @@ import streamlit as st
 from streamlit.errors import StreamlitSecretNotFoundError
 
 from lab_portal.portal.auth import authenticated_email, clear_session_authenticated_email, set_session_authenticated_email
-from lab_portal.portal.config import PortalSettings, registry_store_from_settings, settings_from_mapping
+from lab_portal.portal.config import (
+    PortalSettings,
+    open_spreadsheet_by_key_with_retry,
+    registry_store_from_settings,
+    settings_from_mapping,
+)
 from lab_portal.portal.constants import APP_ROLES, PORTAL_ROLES
 from lab_portal.portal.permissions import can_admin_portal, resolve_member_by_email
 from lab_portal.portal.services import add_member, add_team, deactivate_member, grant_app_role, update_app_url
+from lab_portal.portal.storage import GoogleSheetRegistryStore
 from lab_portal.portal.theme import apply_theme
 from lab_portal.portal.views import app_card_html, app_cards, dashboard_header_html
 
@@ -30,7 +37,19 @@ SAMPLE_REGISTRY_DIR = Path(__file__).parent / "data" / "sample"
 
 def get_registry_store():
     settings = get_portal_settings()
+    if settings.registry_spreadsheet_id and settings.service_account_info:
+        spreadsheet = _cached_registry_spreadsheet(
+            settings.registry_spreadsheet_id,
+            json.dumps(settings.service_account_info, sort_keys=True),
+        )
+        return GoogleSheetRegistryStore(spreadsheet)
     return registry_store_from_settings(settings, SAMPLE_REGISTRY_DIR, _gspread_service_account_from_dict)
+
+
+@st.cache_resource(ttl=300, show_spinner=False)
+def _cached_registry_spreadsheet(spreadsheet_id: str, service_account_info_json: str):
+    client = _gspread_service_account_from_dict(json.loads(service_account_info_json))
+    return open_spreadsheet_by_key_with_retry(client, spreadsheet_id)
 
 
 def get_portal_settings():
@@ -309,12 +328,28 @@ def portal_admin_passcode() -> str:
         return ""
 
 
+def render_registry_connection_error(error: Exception) -> None:
+    st.html(dashboard_header_html(APP_TITLE, "Shared entry point for Kamei Reverse Bioengineering Lab apps"))
+    st.error("The shared lab registry could not be loaded.")
+    st.info(
+        "Please refresh the app. If this repeats, check that the Google Sheet is shared with the service account "
+        "and that `REGISTRY_SPREADSHEET_ID` is correct in Streamlit Cloud secrets."
+    )
+    with st.expander("Technical detail"):
+        st.code(f"{type(error).__name__}: {error}")
+
+
 def main() -> None:
     st.set_page_config(page_title=APP_TITLE, page_icon="K", layout="wide", initial_sidebar_state="expanded")
     apply_theme()
 
-    store = get_registry_store()
-    registry = load_registry(store)
+    try:
+        store = get_registry_store()
+        registry = load_registry(store)
+    except Exception as error:
+        render_registry_connection_error(error)
+        st.stop()
+
     email = authenticated_email()
     member = resolve_member_by_email(registry, email)
     is_admin = can_admin_portal(member)
