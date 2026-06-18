@@ -52,6 +52,12 @@ def _cached_registry_spreadsheet(spreadsheet_id: str, service_account_info_json:
     return open_spreadsheet_by_key_with_retry(client, spreadsheet_id)
 
 
+@st.cache_data(ttl=120, show_spinner=False)
+def _cached_registry_data(spreadsheet_id: str, service_account_info_json: str):
+    spreadsheet = _cached_registry_spreadsheet(spreadsheet_id, service_account_info_json)
+    return GoogleSheetRegistryStore(spreadsheet).load()
+
+
 def get_portal_settings():
     try:
         return settings_from_mapping(st.secrets)
@@ -60,11 +66,19 @@ def get_portal_settings():
 
 
 def load_registry(store=None):
+    if store is None:
+        settings = get_portal_settings()
+        if settings.registry_spreadsheet_id and settings.service_account_info:
+            return _cached_registry_data(
+                settings.registry_spreadsheet_id,
+                json.dumps(settings.service_account_info, sort_keys=True),
+            )
     return (store or get_registry_store()).load()
 
 
 def save_registry(registry, store=None) -> None:
     (store or get_registry_store()).save(registry)
+    _cached_registry_data.clear()
 
 
 def selected_view_from_query(views: list[str]) -> str:
@@ -345,7 +359,7 @@ def main() -> None:
 
     try:
         store = get_registry_store()
-        registry = load_registry(store)
+        registry = load_registry()
     except Exception as error:
         render_registry_connection_error(error)
         st.stop()
