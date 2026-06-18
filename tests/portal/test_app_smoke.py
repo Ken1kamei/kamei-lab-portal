@@ -99,3 +99,35 @@ def test_authenticated_email_ignores_empty_dev_environment(monkeypatch):
     monkeypatch.setenv("PORTAL_DEV_EMAIL", "")
 
     assert authenticated_email() == ""
+
+
+def test_authenticated_email_uses_verified_nyu_oidc_user(monkeypatch):
+    import lab_portal.portal.auth as auth
+
+    monkeypatch.delenv("PORTAL_DEV_EMAIL", raising=False)
+    monkeypatch.setattr(auth.st, "secrets", {}, raising=False)
+    monkeypatch.setattr(auth.st, "session_state", {}, raising=False)
+    monkeypatch.setattr(
+        auth.st,
+        "user",
+        {"is_logged_in": True, "email": "Lab.Member@nyu.edu", "email_verified": True},
+        raising=False,
+    )
+
+    assert auth.authenticated_email() == "lab.member@nyu.edu"
+
+
+def test_authenticated_email_rejects_non_nyu_oidc_user(monkeypatch):
+    import lab_portal.portal.auth as auth
+
+    monkeypatch.delenv("PORTAL_DEV_EMAIL", raising=False)
+    monkeypatch.setattr(auth.st, "secrets", {}, raising=False)
+    monkeypatch.setattr(auth.st, "session_state", {}, raising=False)
+    monkeypatch.setattr(
+        auth.st,
+        "user",
+        {"is_logged_in": True, "email": "person@example.com", "email_verified": True},
+        raising=False,
+    )
+
+    assert auth.authenticated_email() == ""

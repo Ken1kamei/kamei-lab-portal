@@ -13,6 +13,7 @@ if str(PROJECT_ROOT) not in sys.path:
 import streamlit as st
 from streamlit.errors import StreamlitSecretNotFoundError
 
+from lab_portal.portal.auth import authenticated_email, clear_session_authenticated_email, oidc_configured
 from lab_portal.portal.config import (
     PortalSettings,
     registry_store_from_settings,
@@ -141,6 +142,40 @@ def selected_view_from_query(views: list[str]) -> str:
     return view if view in views else views[0]
 
 
+def resolve_ledger_member_by_email(ledger, email: str) -> dict[str, str] | None:
+    if not email:
+        return None
+    members = ledger["Members"].fillna("")
+    matches = members[members["email"].astype(str).str.strip().str.lower() == email.strip().lower()]
+    if "active" in matches.columns:
+        matches = matches[matches["active"].astype(str).str.strip().str.upper().isin({"TRUE", "YES", "Y", "1"})]
+    if len(matches) != 1:
+        return None
+    return {key: str(value) for key, value in matches.iloc[0].to_dict().items()}
+
+
+def render_login_required() -> None:
+    st.html(dashboard_header_html(APP_TITLE, "Shared research ledger with data links"))
+    st.info("Sign in with your NYU Google account to continue.")
+    if oidc_configured() and hasattr(st, "login"):
+        if st.button("Sign in with NYU Google", type="primary", use_container_width=True):
+            st.login()
+    else:
+        st.error("NYU Google login is not configured yet. Add [auth] OIDC settings in Streamlit Cloud secrets.")
+
+
+def render_unregistered_account(email: str) -> None:
+    st.html(dashboard_header_html(APP_TITLE, "Shared research ledger with data links"))
+    st.error("This NYU Google account is not linked to an active Project Tracker member.")
+    st.caption(f"Signed in as `{email}`")
+    st.info("Ask a Portal admin to register this exact email and grant Project Tracker access.")
+    if st.button("Sign out", use_container_width=True):
+        clear_session_authenticated_email()
+        if hasattr(st, "logout"):
+            st.logout()
+        st.rerun()
+
+
 def main() -> None:
     st.set_page_config(
         page_title=APP_TITLE,
@@ -164,12 +199,28 @@ def main() -> None:
             st.code(f"{type(error).__name__}: {error}")
         st.stop()
 
+    email = authenticated_email()
+    signed_in_member = resolve_ledger_member_by_email(ledger, email)
+    if not email and oidc_configured():
+        render_login_required()
+        st.stop()
+    if email and signed_in_member is None:
+        render_unregistered_account(email)
+        st.stop()
+
     view_from_query = selected_view_from_query(VIEWS)
     with st.sidebar:
         st.html(sidebar_brand_html("Kamei Lab", "Progress Tracker", "Shared research portal"))
         portal_settings = get_portal_settings()
         portal_url = portal_settings.portal_app_url or DEFAULT_PORTAL_URL
         st.link_button("Back to Kamei Lab Portal", portal_url, use_container_width=True)
+        if email:
+            st.caption(f"Signed in as `{email}`")
+            if st.button("Sign out", use_container_width=True):
+                clear_session_authenticated_email()
+                if hasattr(st, "logout"):
+                    st.logout()
+                st.rerun()
         selected_view = st.radio("View", VIEWS, index=VIEWS.index(view_from_query))
         if st.query_params.get("view") != selected_view:
             st.query_params["view"] = selected_view
@@ -183,7 +234,15 @@ def main() -> None:
             row["member_id"]: _member_label(row["name"], row["email"])
             for _, row in member_rows.iterrows()
         }
-        selected_member_id = st.selectbox("Member", list(member_labels), format_func=lambda value: member_labels[value])
+        member_ids = list(member_labels)
+        signed_in_member_id = signed_in_member.get("member_id", "") if signed_in_member else ""
+        default_member_index = member_ids.index(signed_in_member_id) if signed_in_member_id in member_ids else 0
+        selected_member_id = st.selectbox(
+            "Member",
+            member_ids,
+            index=default_member_index,
+            format_func=lambda value: member_labels[value],
+        )
         st.caption(f"Showing: `{selected_team}`")
         registry_source, progress_source = shared_data_source_labels(portal_settings)
         st.caption(f"Registry: `{registry_source}`")

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
 from datetime import date
 import json
 from pathlib import Path
@@ -15,7 +14,7 @@ import pandas as pd
 import streamlit as st
 from streamlit.errors import StreamlitSecretNotFoundError
 
-from lab_portal.portal.auth import authenticated_email, clear_session_authenticated_email, set_session_authenticated_email
+from lab_portal.portal.auth import authenticated_email, clear_session_authenticated_email, oidc_configured, set_session_authenticated_email
 from lab_portal.portal.config import (
     PortalSettings,
     open_spreadsheet_by_key_with_retry,
@@ -426,23 +425,29 @@ def render_passcode_signin(registry) -> None:
 
 
 def auth_configured() -> bool:
-    try:
-        auth = st.secrets.get("auth", {})
-    except Exception:
-        return False
-    if hasattr(auth, "to_dict"):
-        auth = auth.to_dict()
-    if not isinstance(auth, Mapping):
-        return False
-    if auth.get("client_id") and auth.get("client_secret") and auth.get("server_metadata_url"):
-        return True
-    return any(
-        isinstance(provider, Mapping)
-        and provider.get("client_id")
-        and provider.get("client_secret")
-        and provider.get("server_metadata_url")
-        for provider in auth.values()
-    )
+    return oidc_configured()
+
+
+def render_login_required() -> None:
+    st.html(dashboard_header_html(APP_TITLE, "Shared entry point for Kamei Reverse Bioengineering Lab apps"))
+    st.info("Sign in with your NYU Google account to continue.")
+    if auth_configured() and hasattr(st, "login"):
+        if st.button("Sign in with NYU Google", type="primary", use_container_width=True):
+            st.login()
+    else:
+        st.error("NYU Google login is not configured yet. Add [auth] OIDC settings in Streamlit Cloud secrets.")
+
+
+def render_unregistered_account(email: str) -> None:
+    st.html(dashboard_header_html(APP_TITLE, "Shared entry point for Kamei Reverse Bioengineering Lab apps"))
+    st.error("This NYU Google account is not linked to an active lab member.")
+    st.caption(f"Signed in as `{email}`")
+    st.info("Ask a Portal admin to register this exact email in Members.")
+    if st.button("Sign out", use_container_width=True):
+        clear_session_authenticated_email()
+        if hasattr(st, "logout"):
+            st.logout()
+        st.rerun()
 
 
 def admin_passcode_configured() -> bool:
@@ -481,6 +486,13 @@ def main() -> None:
     email = authenticated_email()
     member = resolve_member_by_email(registry, email)
     is_admin = can_admin_portal(member)
+
+    if not email and auth_configured():
+        render_login_required()
+        st.stop()
+    if email and member is None:
+        render_unregistered_account(email)
+        st.stop()
 
     view_from_query = selected_view_from_query(VIEWS)
     with st.sidebar:

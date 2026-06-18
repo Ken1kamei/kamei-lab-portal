@@ -8,6 +8,7 @@ from .schema import REQUIRED_COLUMNS
 
 
 SHARED_REGISTRY_TABLES = {"Members", "Teams", "Member_Teams"}
+PROJECT_TRACKER_APP_IDS = {"project_tracker", "progress_tracker"}
 PROGRESS_TABLES = tuple(table_name for table_name in REQUIRED_COLUMNS if table_name not in SHARED_REGISTRY_TABLES)
 
 
@@ -94,12 +95,18 @@ def _project_tracker_shared_tables(registry: dict[str, pd.DataFrame]) -> dict[st
     members = registry["Members"].fillna("").copy()
     teams = registry["Teams"].fillna("").copy()
     member_teams = registry["Member_Teams"].fillna("").copy()
+    app_roles = registry.get("App_Roles", pd.DataFrame()).fillna("").copy()
 
     active_members = members[members["active"].map(_is_active)].copy()
     active_teams = teams[teams["active"].map(_is_active)].copy()
     active_member_teams = member_teams[member_teams["active"].map(_is_active)].copy()
+    has_app_role_table = {"member_id", "app_id", "active"}.issubset(set(app_roles.columns)) and not app_roles.empty
+    active_project_roles = _active_project_tracker_roles(app_roles)
 
     active_member_ids = set(active_members["member_id"])
+    if has_app_role_table:
+        active_member_ids &= set(active_project_roles["member_id"].astype(str))
+        active_members = active_members[active_members["member_id"].astype(str).isin(active_member_ids)]
     active_team_ids = set(active_teams["team_id"])
     active_member_teams = active_member_teams[
         active_member_teams["member_id"].isin(active_member_ids) & active_member_teams["team_id"].isin(active_team_ids)
@@ -136,3 +143,12 @@ def _project_tracker_shared_tables(registry: dict[str, pd.DataFrame]) -> dict[st
         "Teams": tracker_teams,
         "Member_Teams": tracker_member_teams,
     }
+
+
+def _active_project_tracker_roles(app_roles: pd.DataFrame) -> pd.DataFrame:
+    required_columns = {"member_id", "app_id", "active"}
+    if app_roles.empty or not required_columns.issubset(set(app_roles.columns)):
+        return pd.DataFrame(columns=["member_id", "app_id", "active"])
+    return app_roles[
+        app_roles["active"].map(_is_active) & app_roles["app_id"].astype(str).isin(PROJECT_TRACKER_APP_IDS)
+    ].copy()
