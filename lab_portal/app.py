@@ -429,13 +429,26 @@ def auth_configured() -> bool:
 
 
 def render_login_required() -> None:
-    st.html(dashboard_header_html(APP_TITLE, "Shared entry point for Kamei Reverse Bioengineering Lab apps"))
-    st.info("Sign in with your NYU Google account to continue.")
-    if auth_configured() and hasattr(st, "login"):
-        if st.button("Sign in with NYU Google", type="primary", use_container_width=True):
-            st.login()
-    else:
-        st.error("NYU Google login is not configured yet. Add [auth] OIDC settings in Streamlit Cloud secrets.")
+    _, center, _ = st.columns([1, 2, 1])
+    with center:
+        st.html(
+            """
+            <div class="portal-login-panel">
+              <div class="portal-login-brand">
+                <div class="portal-login-icon" aria-hidden="true">&#128300;</div>
+                <h1 class="portal-login-title">Kamei Lab Portal</h1>
+              </div>
+              <p class="portal-login-subtitle">Kamei Reverse Bioengineering Lab · NYUAD</p>
+              <div class="portal-login-rule"></div>
+              <p class="portal-login-copy">Sign in with your NYU Google account to continue.</p>
+            </div>
+            """
+        )
+        if auth_configured() and hasattr(st, "login"):
+            if st.button("Sign in with Google", key="portal_login_google", use_container_width=True):
+                st.login()
+        else:
+            st.error("NYU Google login is not configured yet. Add [auth] OIDC settings in Streamlit Cloud secrets.")
 
 
 def render_unregistered_account(email: str) -> None:

@@ -30,6 +30,69 @@ def apply_theme() -> None:
           max-width: 1440px;
           padding-top: 1rem;
         }
+        .portal-login-panel {
+          max-width: 720px;
+          margin: 24px auto 0;
+          padding-top: 12px;
+        }
+        .portal-login-brand {
+          display: flex;
+          align-items: center;
+          gap: 18px;
+          margin-bottom: 28px;
+        }
+        .portal-login-icon {
+          font-size: clamp(2.2rem, 4vw, 3.1rem);
+          line-height: 1;
+        }
+        .portal-login-title {
+          color: var(--portal-text);
+          font-size: clamp(2.8rem, 6vw, 4.2rem);
+          line-height: 1;
+          font-weight: 900;
+          letter-spacing: 0;
+          margin: 0;
+        }
+        .portal-login-subtitle {
+          color: var(--portal-text);
+          font-size: clamp(1.15rem, 2.1vw, 1.55rem);
+          font-weight: 650;
+          font-style: italic;
+          margin: 0 0 104px;
+        }
+        .portal-login-rule {
+          height: 1px;
+          background: rgba(247, 248, 255, .28);
+          margin: 0 0 70px;
+        }
+        .portal-login-copy {
+          color: var(--portal-text);
+          font-size: clamp(1.2rem, 2vw, 1.55rem);
+          font-weight: 750;
+          margin: 0 0 26px;
+        }
+        div.st-key-portal_login_google button {
+          min-height: 64px;
+          border-radius: 10px;
+          border: 1px solid rgba(247, 248, 255, .88);
+          background: #f7f8ff;
+          color: #151b32;
+          font-size: 1.25rem;
+          font-weight: 800;
+          box-shadow: none;
+        }
+        div.st-key-portal_login_google button:hover,
+        div.st-key-portal_login_google button:focus {
+          border-color: #ffffff;
+          background: #ffffff;
+          color: #151b32;
+          box-shadow: 0 18px 38px rgba(5, 8, 20, .24);
+        }
+        div.st-key-portal_login_google button p {
+          color: #151b32;
+          font-size: 1.25rem;
+          font-weight: 800;
+        }
         .portal-header {
           border-bottom: 1px solid var(--portal-line);
           margin: 16px 0 28px;
