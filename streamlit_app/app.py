@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import sys
+import time
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -14,7 +15,6 @@ from streamlit.errors import StreamlitSecretNotFoundError
 
 from lab_portal.portal.config import (
     PortalSettings,
-    open_spreadsheet_by_key_with_retry,
     registry_store_from_settings,
     settings_from_mapping,
 )
@@ -85,6 +85,21 @@ def get_progress_store():
 def _cached_progress_spreadsheet(spreadsheet_id: str, service_account_info_json: str):
     client = _gspread_service_account_from_dict(json.loads(service_account_info_json))
     return open_spreadsheet_by_key_with_retry(client, spreadsheet_id)
+
+
+def open_spreadsheet_by_key_with_retry(client, spreadsheet_id: str, attempts: int = 3, delay_seconds: float = 0.8):
+    last_error = None
+    for attempt in range(attempts):
+        try:
+            return client.open_by_key(spreadsheet_id)
+        except Exception as error:
+            last_error = error
+            if attempt == attempts - 1:
+                break
+            time.sleep(delay_seconds * (attempt + 1))
+    if last_error is not None:
+        raise last_error
+    raise ValueError("Spreadsheet id is required.")
 
 
 def load_ledger(store=None):
